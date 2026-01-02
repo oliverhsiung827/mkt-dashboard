@@ -708,29 +708,50 @@
                     let overallCount=0, overallDelay=0, overallDelayDays=0;
                     let activeReasons={}, overallReasons={}, archivedList=[];
                     let totalPeriodHours = 0; 
+
                     this.allSubProjects.forEach(item => {
                         const sp = item.branch;
-                        (sp.events || []).forEach(ev => { if (this.checkDateMatch(ev.date)) totalPeriodHours += Number(ev.hours || 0); });
+                        
+                        // 計算區間內的總工時 (用於上方卡片數據)
+                        (sp.events || []).forEach(ev => { 
+                            if (this.checkDateMatch(ev.date)) {
+                                totalPeriodHours += Number(ev.hours || 0); 
+                            }
+                        });
+
+                        // 儀表板：執行中數據
                         if(sp.status === 'in_progress') {
                             activeCount++;
                             const d = this.getProjectHealth(sp);
                             if(d.type === 'delay') { activeDelay++; activeDelayDays += d.days; }
                             if(sp.delayReason) activeReasons[sp.delayReason] = (activeReasons[sp.delayReason] || 0) + 1;
                         }
+
+                        // 歷史報表：歸檔數據
                         if(this.currentView === 'history_report') {
+                             // 檢查是否符合篩選日期
                              const isMatch = this.checkDateMatch(sp.completedDate || sp.endDate);
+                             
                              if((sp.status === 'completed' || sp.status === 'aborted') && isMatch) {
-                                overallCount++; archivedList.push(item);
+                                overallCount++;
+                                
+                                // ★★★ [修正] 這裡加入計算單一專案總工時，讓列表可以顯示 ★★★
+                                sp.actHours = this.calcSubProjectHours(sp);
+                                
+                                archivedList.push(item);
+
                                 const d = sp.finalDelayDays || 0;
                                 if(d > 0 && sp.status !== 'aborted') { overallDelay++; overallDelayDays += d; }
                                 if(sp.delayReason) overallReasons[sp.delayReason] = (overallReasons[sp.delayReason] || 0) + 1;
                              }
                         }
                     });
+
                     return {
                         active: { count: activeCount, delayRate: activeCount?Math.round(activeDelay/activeCount*100):0, totalDelayDays: activeDelayDays, reasonList: this.objToArr(activeReasons, activeCount) },
                         overall: { totalProjects: overallCount, delayRate: overallCount?Math.round(overallDelay/overallCount*100):0, totalDelayDays: overallDelayDays, reasonList: this.objToArr(overallReasons, overallCount) },
-                        archivedList, archivedHours: totalPeriodHours
+                        archivedList,
+                        archivedHours: totalPeriodHours
                     };
                 },
                 currentProjectStats() {
