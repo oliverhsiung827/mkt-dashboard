@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <title>上洋行銷戰情室 | UP YOUNG Marketing System</title>
-    <meta name="description" content="上洋產業行銷部專案管理系統 (v79.0)。整合儀表板、甘特圖排程與即時專案監控，協助團隊高效協作。">
+    <meta name="description" content="上洋產業行銷部專案管理系統。整合儀表板、甘特圖排程與即時專案監控，協助團隊高效協作。">
     <meta name="author" content="UP YOUNG Marketing Department">
     <meta name="robots" content="noindex, nofollow">
 
@@ -117,7 +117,7 @@
 
         <div v-if="!userParams" class="fixed inset-0 z-[9999] flex items-center justify-center login-bg">
             <div class="bg-white/95 backdrop-blur-sm p-10 rounded-2xl shadow-2xl w-[400px] fade-in">
-                <div class="text-center mb-8"><h1 class="text-2xl font-bold text-slate-800">上洋行銷部 戰情室</h1><p class="text-slate-500 text-sm mt-2">v79.0</p></div>
+                <div class="text-center mb-8"><h1 class="text-2xl font-bold text-slate-800">上洋行銷部 戰情室</h1><p class="text-slate-500 text-sm mt-2">v1.1</p></div>
                 <div v-if="authError" class="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-6 flex items-center"><i class="fas fa-exclamation-circle mr-2"></i> {{ authError }}</div>
                 <div class="space-y-5">
                     <input v-model="authForm.email" type="email" class="w-full border rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Email">
@@ -209,12 +209,174 @@
                         </div>
                         <div class="bg-white rounded-xl shadow-sm border border-slate-200 w-full overflow-hidden">
                             <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50"><h3 class="font-bold text-slate-700"><i class="fas fa-users-cog mr-2 text-indigo-500"></i> 人員產能 (當前狀態)</h3></div>
-                            <div class="overflow-x-auto w-full"><table class="w-full text-sm text-left"><thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b"><tr><th class="px-6 py-3">成員</th><th class="px-6 py-3 text-center">期間產出工時</th><th class="px-6 py-3 text-center">執行中案件</th><th class="px-6 py-3 text-right">異常</th></tr></thead><tbody class="divide-y divide-slate-100"><tr v-for="m in memberStats" :key="m.id" class="hover:bg-indigo-50 cursor-pointer transition relative z-10" @click="openMemberDetail(m)"><td class="px-6 py-3 font-bold text-slate-700"><span class="text-[10px] bg-slate-100 border border-slate-200 text-slate-500 px-1.5 py-0.5 rounded mr-2 uppercase">{{ teamMap[m.team] || 'N/A' }}</span>{{ m.name }}</td><td class="px-6 py-3 text-center font-bold text-blue-600">{{ m.periodHours }} h</td><td class="px-6 py-3 text-center"><span :class="['px-2 py-1 rounded text-xs font-bold', m.activeBranches>3?'bg-orange-100 text-orange-700':'bg-slate-100']">{{ m.activeBranches }}</span></td><td class="px-6 py-3 text-right"><span v-if="m.delayCount>0" class="text-red-500 text-xs font-bold">{{ m.delayCount }} 延誤</span><span v-else class="text-emerald-500 text-xs font-bold">正常</span></td></tr></tbody></table></div>
+                            <div class="overflow-x-auto w-full">
+                                <table class="w-full text-sm text-left">
+                                    <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                                        <tr>
+                                            <th class="px-6 py-3">成員</th>
+                                            <th class="px-6 py-3 text-center">執行中案件</th>
+                                            <th class="px-6 py-3 text-right">異常</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        <tr v-for="m in memberStats" :key="m.id" class="hover:bg-indigo-50 cursor-pointer transition relative z-10" @click="openMemberDetail(m)">
+                                            <td class="px-6 py-3 font-bold text-slate-700">
+                                                <span class="text-[10px] bg-slate-100 border border-slate-200 text-slate-500 px-1.5 py-0.5 rounded mr-2 uppercase">{{ teamMap[m.team] || 'N/A' }}</span>{{ m.name }}
+                                            </td>
+                                            <td class="px-6 py-3 text-center">
+                                                <span :class="['px-2 py-1 rounded text-xs font-bold', m.activeBranches>3?'bg-orange-100 text-orange-700':'bg-slate-100']">{{ m.activeBranches }}</span>
+                                            </td>
+                                            <td class="px-6 py-3 text-right">
+                                                <span v-if="m.delayCount>0" class="text-red-500 text-xs font-bold">{{ m.delayCount }} 延誤</span>
+                                                <span v-else class="text-emerald-500 text-xs font-bold">正常</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
 
                     <div v-if="currentView === 'history_report'" class="flex-1 overflow-y-auto p-8 w-full fade-in">
-                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 w-full gap-4"><h2 class="text-2xl font-bold text-slate-800 flex items-center gap-3"><i class="fas fa-history text-indigo-500"></i> 歷史績效報表<span class="text-sm font-normal text-slate-400 bg-white border px-2 py-1 rounded-full">{{ currentYear }} / {{ currentMonth === 'all' ? 'All' : currentMonth }}</span></h2><div class="flex flex-wrap gap-2 items-center"><button @click="exportHistoryReport" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition mr-2 flex items-center"><i class="fas fa-file-export mr-2"></i> 匯出報表</button><select v-model="selectedDashboardBrand" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white font-bold text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500"><option value="all">所有品牌</option><option v-for="b in sortedBrands" :value="b.id">{{ b.name }}</option></select><select v-model="currentYear" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white font-bold text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500"><option v-for="y in [2023,2024,2025,2026]" :value="y">{{ y }}年</option></select><select v-model="currentMonth" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white font-bold text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500"><option value="all">全年</option><option v-for="m in 12" :value="m">{{ m }}月</option></select></div></div><div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 w-full"><div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200"><div class="flex justify-between items-start mb-4"><div class="text-xs font-bold text-slate-500 uppercase">總結案量</div><div class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center"><i class="fas fa-folder"></i></div></div><div class="text-3xl font-bold text-slate-800">{{ scopedStats.overall?.totalProjects || 0 }}</div></div><div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200"><div class="flex justify-between items-start mb-4"><div class="text-xs font-bold text-slate-500 uppercase">總體延遲率</div><div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-500 flex items-center justify-center"><i class="fas fa-percentage"></i></div></div><div class="text-3xl font-bold text-indigo-600">{{ scopedStats.overall?.delayRate || 0 }}<span class="text-sm">%</span></div></div><div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200"><div class="flex justify-between items-start mb-4"><div class="text-xs font-bold text-slate-500 uppercase">累積延遲天數</div><div class="w-8 h-8 rounded-full bg-pink-100 text-pink-500 flex items-center justify-center"><i class="fas fa-history"></i></div></div><div class="text-3xl font-bold text-pink-600">{{ scopedStats.overall?.totalDelayDays || 0 }} <span class="text-sm font-normal text-slate-400">天</span></div></div><div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200"><div class="flex justify-between items-start mb-4"><div class="text-xs font-bold text-slate-500 uppercase">期間歸檔工時</div><div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-500 flex items-center justify-center"><i class="fas fa-archive"></i></div></div><div class="text-3xl font-bold text-slate-800">{{ scopedStats?.archivedHours || 0 }} <span class="text-sm font-medium text-slate-400">h</span></div></div></div><div class="grid grid-cols-1 gap-6 mb-8 w-full"><div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"><div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center"><h3 class="font-bold text-slate-700"><i class="fas fa-archive mr-2"></i> 歷史延遲與中止原因分析</h3></div><div class="p-6"><div v-if="!scopedStats?.overall?.reasonList || scopedStats.overall.reasonList.length===0" class="text-center text-slate-400 text-sm">尚無資料</div><div class="space-y-4" v-else><div v-for="r in scopedStats.overall.reasonList" :key="r.name" class="flex items-center"><div class="w-24 text-xs font-bold text-slate-600 text-right mr-4">{{ r.name }}</div><div class="flex-1 bg-slate-100 rounded-full h-3 relative"><div class="bg-indigo-500 h-3 rounded-full" :style="{width: r.percent + '%'}"></div></div><div class="w-16 text-xs font-bold text-indigo-600 ml-4 text-right">{{ r.count }} ({{ r.percent }}%)</div></div></div></div></div></div><div class="bg-white rounded-xl shadow-sm border border-slate-200 mb-8 w-full overflow-hidden"><div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50"><h3 class="font-bold text-slate-700">歸檔專案列表</h3></div><div class="overflow-x-auto w-full"><table class="w-full text-sm text-left"><thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b"><tr><th class="px-6 py-3">品牌 / 專案 / 分支</th><th class="px-6 py-3">負責人</th><th class="px-6 py-3 text-center">結案日</th><th class="px-6 py-3 text-center">總工時</th><th class="px-6 py-3">最終狀態</th></tr></thead><tbody class="divide-y divide-slate-100"><tr v-if="scopedStats.archivedList.length===0"><td colspan="5" class="px-6 py-4 text-center text-slate-400">尚無歸檔資料</td></tr><tr v-for="item in scopedStats.archivedList" :key="item.branch.id" class="hover:bg-slate-50 transition cursor-pointer" @click="selectSubProject(item.branch, item.parent)"><td class="px-6 py-3"><div class="text-xs text-slate-400 mb-1">{{ item.brand.name }} / {{ item.parent.title }}</div><div class="font-bold text-slate-800">{{ item.branch.title }}</div></td><td class="px-6 py-3">{{ item.branch.assignee }}</td><td class="px-6 py-3 text-center font-mono">{{ item.branch.endDate }}</td><td class="px-6 py-3 text-center font-bold text-blue-600">{{ item.branch.actHours }} h</td><td class="px-6 py-3"><span :class="['px-2 py-1 rounded text-xs font-bold', item.branch.status==='aborted'?'bg-slate-200 text-slate-600':'bg-emerald-100 text-emerald-700']">{{ item.branch.status==='aborted'?'已中止':(item.branch.finalDelayDays > 0 ? `延誤 ${item.branch.finalDelayDays} 天` : '準時') }}</span></td></tr></tbody></table></div></div>
+                         <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 w-full gap-4">
+                            <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                                <i class="fas fa-history text-indigo-500"></i> 歷史績效報表<span class="text-sm font-normal text-slate-400 bg-white border px-2 py-1 rounded-full">{{ currentYear }} / {{ currentMonth === 'all' ? 'All' : currentMonth }}</span></h2><div class="flex flex-wrap gap-2 items-center"><button @click="exportHistoryReport" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition mr-2 flex items-center"><i class="fas fa-file-export mr-2"></i> 匯出報表</button><select v-model="selectedDashboardBrand" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white font-bold text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500"><option value="all">所有品牌</option><option v-for="b in sortedBrands" :value="b.id">{{ b.name }}</option></select><select v-model="currentYear" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white font-bold text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500"><option v-for="y in [2023,2024,2025,2026]" :value="y">{{ y }}年</option></select><select v-model="currentMonth" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-white font-bold text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500"><option value="all">全年</option><option v-for="m in 12" :value="m">{{ m }}月</option></select></div></div>
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 w-full">
+                                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                                        <div class="flex justify-between items-start mb-4">
+                                            <div class="text-xs font-bold text-slate-500 uppercase">總結案量</div>
+                                            <div class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center">
+                                                <i class="fas fa-folder"></i>
+                                            </div>
+                                        </div>
+                                        <div class="text-3xl font-bold text-slate-800">{{ scopedStats.overall?.totalProjects || 0 }}
+                                        </div>
+                                    </div>
+                                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                                        <div class="flex justify-between items-start mb-4">
+                                            <div class="text-xs font-bold text-slate-500 uppercase">總體延遲率</div>
+                                            <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-500 flex items-center justify-center">
+                                                <i class="fas fa-percentage"></i>
+                                            </div>
+                                        </div>
+                                        <div class="text-3xl font-bold text-indigo-600">{{ scopedStats.overall?.delayRate || 0 }}
+                                            <span class="text-sm">%</span>
+                                        </div>
+                                    </div>
+                                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                                        <div class="flex justify-between items-start mb-4">
+                                            <div class="text-xs font-bold text-slate-500 uppercase">累積延遲天數</div>
+                                            <div class="w-8 h-8 rounded-full bg-pink-100 text-pink-500 flex items-center justify-center">
+                                                <i class="fas fa-history"></i>
+                                            </div>
+                                        </div>
+                                        <div class="text-3xl font-bold text-pink-600">{{ scopedStats.overall?.totalDelayDays || 0 }} 
+                                            <span class="text-sm font-normal text-slate-400">天</span>
+                                        </div>
+                                    </div>
+                                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                                        <div class="flex justify-between items-start mb-4">
+                                            <div class="text-xs font-bold text-slate-500 uppercase">期間歸檔工時</div>
+                                            <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-500 flex items-center justify-center">
+                                                <i class="fas fa-archive"></i>
+                                            </div>
+                                        </div>
+                                        <div class="text-3xl font-bold text-slate-800">{{ scopedStats?.archivedHours || 0 }}
+                                             <span class="text-sm font-medium text-slate-400">h</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-1 gap-6 mb-8 w-full">
+                                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                            <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                                                <h3 class="font-bold text-slate-700">
+                                                    <i class="fas fa-archive mr-2"></i> 歷史延遲與中止原因分析</h3>
+                                            </div>
+                                            <div class="p-6">
+                                                <div v-if="!scopedStats?.overall?.reasonList || scopedStats.overall.reasonList.length===0" class="text-center text-slate-400 text-sm">尚無資料</div>
+                                                <div class="space-y-4" v-else>
+                                                    <div v-for="r in scopedStats.overall.reasonList" :key="r.name" class="flex items-center">
+                                                        <div class="w-24 text-xs font-bold text-slate-600 text-right mr-4">{{ r.name }}</div>
+                                                        <div class="flex-1 bg-slate-100 rounded-full h-3 relative">
+                                                            <div class="bg-indigo-500 h-3 rounded-full" :style="{width: r.percent + '%'}"></div>
+                                                        </div>
+                                                        <div class="w-16 text-xs font-bold text-indigo-600 ml-4 text-right">{{ r.count }} ({{ r.percent }}%)</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 mb-8 w-full overflow-hidden">
+                                        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                                            <h3 class="font-bold text-slate-700">歸檔專案列表</h3>
+                                        </div>
+                                        <div class="overflow-x-auto w-full">
+                                            <table class="w-full text-sm text-left">
+                                                <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                                                    <tr><th class="px-6 py-3">品牌 / 專案 / 分支</th>
+                                                        <th class="px-6 py-3">負責人</th>
+                                                        <th class="px-6 py-3 text-center">結案日</th>
+                                                        <th class="px-6 py-3 text-center">總工時</th>
+                                                        <th class="px-6 py-3">最終狀態</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-slate-100">
+                                                    <tr v-if="scopedStats.archivedList.length===0">
+                                                        <td colspan="5" class="px-6 py-4 text-center text-slate-400">尚無歸檔資料</td>
+                                                    </tr>
+                                                    <tr v-for="item in scopedStats.archivedList" :key="item.branch.id" class="hover:bg-slate-50 transition cursor-pointer" @click="selectSubProject(item.branch, item.parent)">
+                                                        <td class="px-6 py-3">
+                                                            <div class="text-xs text-slate-400 mb-1">{{ item.brand.name }} / {{ item.parent.title }}</div>
+                                                            <div class="font-bold text-slate-800">{{ item.branch.title }}</div>
+                                                        </td>
+                                                        <td class="px-6 py-3">{{ item.branch.assignee }}</td>
+                                                        <td class="px-6 py-3 text-center font-mono">{{ item.branch.endDate }}</td>
+                                                        <td class="px-6 py-3 text-center font-bold text-blue-600">{{ item.branch.actHours }} h</td>
+                                                        <td class="px-6 py-3">
+                                                            <span :class="['px-2 py-1 rounded text-xs font-bold', item.branch.status==='aborted'?'bg-slate-200 text-slate-600':'bg-emerald-100 text-emerald-700']">{{ item.branch.status==='aborted'?'已中止':(item.branch.finalDelayDays > 0 ? `延誤 ${item.branch.finalDelayDays} 天` : '準時') }}</span>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 w-full">
+                                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                            <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                                                <h3 class="font-bold text-slate-700"><i class="fas fa-chart-pie mr-2 text-indigo-500"></i> 各單位工時統計</h3>
+                                            </div>
+                                            <div class="p-6">
+                                                <div v-for="team in departmentHours" :key="team.name" class="flex items-center mb-3 last:mb-0">
+                                                    <div class="w-24 text-xs font-bold text-slate-500 uppercase mr-3">{{ teamMap[team.name] || team.name }}</div>
+                                                    <div class="flex-1 h-2 bg-slate-100 rounded-full mr-3">
+                                                        <div class="h-2 bg-indigo-500 rounded-full" :style="{ width: (team.percent) + '%' }"></div>
+                                                    </div>
+                                                    <div class="w-16 text-right text-xs font-bold text-slate-700">{{ team.hours }} h</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col max-h-80">
+                                            <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                                                <h3 class="font-bold text-slate-700"><i class="fas fa-user-clock mr-2 text-indigo-500"></i> 人員詳細工時</h3>
+                                            </div>
+                                            <div class="flex-1 overflow-y-auto p-0">
+                                                <table class="w-full text-sm text-left">
+                                                    <thead class="text-xs text-slate-500 uppercase bg-slate-50 sticky top-0">
+                                                        <tr><th class="px-6 py-2">成員</th><th class="px-6 py-2 text-right">工時</th></tr>
+                                                    </thead>
+                                                    <tbody class="divide-y divide-slate-100">
+                                                        <tr v-for="m in memberHoursStats" :key="m.name">
+                                                            <td class="px-6 py-2 text-slate-600 font-bold">
+                                                                <span class="text-[10px] bg-slate-100 border border-slate-200 text-slate-400 px-1.5 py-0.5 rounded mr-2 uppercase">{{ teamMap[m.team] }}</span>{{ m.name }}
+                                                            </td>
+                                                            <td class="px-6 py-2 text-right font-mono text-indigo-600 font-bold">{{ m.hours }} h</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
                     </div>
 
                     <div v-if="currentView === 'my_workspace'" class="flex-1 flex flex-col h-full bg-slate-50 fade-in w-full">
@@ -341,7 +503,20 @@
         <input type="date" v-model="editBranchForm.endDate" class="w-full border rounded-lg px-3 py-2 bg-slate-100 text-slate-500 cursor-not-allowed" disabled>
     </div>
 </div>
-            <div><label class="text-xs font-bold text-slate-500 block mb-1">目前負責人 (Assignee)</label><select v-model="editBranchForm.assignee" class="w-full border rounded-lg px-3 py-2"><option v-for="u in users" :value="u.name">{{ u.name }}</option></select></div><div class="border-t pt-4 mt-4 bg-orange-50 p-3 rounded border-orange-100"><label class="text-xs font-bold text-orange-700 block mb-1">延遲原因標記 (執行中可填)</label><select v-model="editBranchForm.delayReason" class="w-full border border-orange-200 rounded-lg px-3 py-2 text-sm bg-white"><option value="">-- 無 --</option><option value="人力不足">人力不足</option><option value="客戶端延遲">客戶端延遲</option><option value="需求變更">需求變更</option><option value="技術瓶頸">技術瓶頸</option><option value="廠商因素">廠商因素</option><option value="其他">其他</option></select></div></div><div class="flex justify-end space-x-3 pt-6 border-t mt-4"><button @click="showEditBranchModal=false" class="px-4 text-slate-500">取消</button><button @click="saveEditedBranch" :disabled="isSubmitting" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50">儲存變更</button></div></div></div>
+            <div><label class="text-xs font-bold text-slate-500 block mb-1">目前負責人 (Assignee)</label><select v-model="editBranchForm.assignee" class="w-full border rounded-lg px-3 py-2"><option v-for="u in users" :value="u.name">{{ u.name }}</option></select></div>
+            <div class="border-t pt-4 mt-4 bg-orange-50 p-3 rounded border-orange-100">
+                <label class="text-xs font-bold text-orange-700 block mb-1">延遲原因標記 (執行中可填)</label>
+                <select v-model="editBranchForm.delayReason" class="w-full border border-orange-200 rounded-lg px-3 py-2 text-sm bg-white">
+                    <option value="">-- 無 --</option>
+                    <option value="人力不足">人力不足</option>
+                    <option value="客戶端延遲">客戶端延遲</option>
+                    <option value="需求變更">需求變更</option>
+                    <option value="技術瓶頸">技術瓶頸</option>
+                    <option value="廠商因素">廠商因素</option>
+                    <option value="其他">其他</option>
+                </select>
+            </div>
+        </div><div class="flex justify-end space-x-3 pt-6 border-t mt-4"><button @click="showEditBranchModal=false" class="px-4 text-slate-500">取消</button><button @click="saveEditedBranch" :disabled="isSubmitting" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50">儲存變更</button></div></div></div>
             
             <div v-if="showProjectModal" class="fixed inset-0 z-[9999] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center fade-in"><div class="bg-white w-[500px] rounded-2xl shadow-2xl flex flex-col p-8 space-y-5"><h3 class="font-bold text-xl text-slate-800">開立專案 (Parent)</h3><div class="space-y-4"><div><label class="block text-xs font-bold text-slate-500 mb-1">專案名稱</label><input v-model="projectForm.title" class="w-full border rounded-lg px-4 py-2"></div><div class="grid grid-cols-2 gap-4"><div><label class="block text-xs font-bold text-slate-500 mb-1">開案日</label><input type="date" v-model="projectForm.startDate" class="w-full border rounded-lg px-4 py-2"></div><div><label class="block text-xs font-bold text-slate-500 mb-1">預計結束</label><input type="date" v-model="projectForm.endDate" class="w-full border rounded-lg px-4 py-2"></div></div></div><div class="flex justify-end space-x-3 pt-4"><button @click="showProjectModal=false" class="px-4 text-slate-500">取消</button><button @click="saveProject" :disabled="isSubmitting" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold shadow-lg disabled:opacity-50">建立</button></div></div></div>
             
@@ -349,7 +524,18 @@
             
             <div v-if="showEventModal" class="fixed inset-0 z-[9999] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center fade-in"><div class="bg-white w-[500px] rounded-2xl shadow-2xl p-8 space-y-5"><h3 class="font-bold text-xl text-slate-800">新增工作日誌</h3><div class="grid grid-cols-2 gap-4"><div><label class="block text-xs font-bold text-slate-500 mb-1">日期</label><input type="date" v-model="eventForm.date" class="w-full border rounded-lg px-3 py-2"></div><div><label class="block text-xs font-bold text-slate-500 mb-1">工時 (Hr)</label><input type="number" v-model="eventForm.hours" class="w-full border rounded-lg px-3 py-2"></div></div><div><label class="block text-xs font-bold text-slate-500 mb-1">執行人員</label><div class="w-full bg-slate-100 border rounded-lg px-3 py-2 text-slate-600 cursor-not-allowed">{{ eventForm.worker }}</div></div><div><label class="block text-xs font-bold text-slate-500 mb-1">工作內容</label><textarea v-model="eventForm.description" class="w-full border rounded-lg px-3 py-2 h-20" placeholder="做了什麼..."></textarea></div><div v-if="incompleteMilestones.length > 0" class="border-t pt-4"><label class="block text-xs font-bold text-indigo-600 mb-2">匹配節點 (選填)</label><select v-model="eventForm.matchedMilestoneId" class="w-full border border-indigo-200 bg-indigo-50 rounded-lg px-3 py-2 text-sm text-indigo-800"><option value="">-- 無匹配節點 --</option><option v-for="ms in incompleteMilestones" :value="ms.id">{{ ms.title }} (預定: {{ ms.date }})</option></select></div><div class="border-t pt-4 bg-orange-50 p-3 rounded-lg border-orange-100"><label class="block text-xs font-bold text-orange-700 mb-1"><i class="fas fa-share mr-1"></i> 後續處理人員 (球權移轉)</label><select v-model="eventForm.nextAssignee" class="w-full border border-orange-200 rounded-lg px-3 py-2 text-sm bg-white"><option v-for="u in users" :value="u.name">{{ u.name }} {{ u.name === currentUser.name ? '(我自己)' : '' }}</option></select></div><div class="flex justify-end space-x-3 pt-4"><button @click="showEventModal=false" class="px-4 text-slate-500">取消</button><button @click="saveEvent" :disabled="isSubmitting" class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold shadow-lg disabled:opacity-50">儲存並更新</button></div></div></div>
             
-            <div v-if="showDelayReasonModal" class="fixed inset-0 z-[9999] bg-red-900/50 backdrop-blur-sm flex items-center justify-center fade-in"><div class="bg-white w-[400px] rounded-2xl shadow-2xl p-8 space-y-5 border-t-4" :class="modalMode.includes('abort')?'border-red-600':'border-orange-500'"><h3 class="font-bold text-xl" :class="modalMode.includes('abort')?'text-red-600':'text-orange-600'">{{ modalTitle }}</h3><p class="text-sm text-slate-600">請填寫原因與備註以完成操作。</p><select v-model="delayForm.reason" class="w-full border rounded-lg px-3 py-2"><option value="人力不足">人力不足</option><option value="客戶端延遲">客戶端延遲</option><option value="需求變更">需求變更</option><option value="技術瓶頸">技術瓶頸</option><option value="廠商因素">廠商因素</option><option value="策略調整">策略調整 (中止用)</option><option value="預算取消">預算取消 (中止用)</option><option value="其他">其他</option></select><textarea v-model="delayForm.remark" class="w-full border rounded-lg px-3 py-2 h-20" placeholder="備註說明..."></textarea><div class="flex justify-end space-x-3 pt-4"><button @click="showDelayReasonModal=false" class="px-4 text-slate-500">取消</button><button @click="submitDelayModal" :disabled="isSubmitting" :class="modalMode.includes('abort')?'bg-red-600':'bg-orange-500'" class="text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50">確認</button></div></div></div>
+            <div v-if="showDelayReasonModal" class="fixed inset-0 z-[9999] bg-red-900/50 backdrop-blur-sm flex items-center justify-center fade-in"><div class="bg-white w-[400px] rounded-2xl shadow-2xl p-8 space-y-5 border-t-4" :class="modalMode.includes('abort')?'border-red-600':'border-orange-500'"><h3 class="font-bold text-xl" :class="modalMode.includes('abort')?'text-red-600':'text-orange-600'">{{ modalTitle }}</h3><p class="text-sm text-slate-600">請填寫原因與備註以完成操作。</p>
+                <select v-model="delayForm.reason" class="w-full border rounded-lg px-3 py-2">
+                    <option value="人力不足">人力不足</option>
+                    <option value="客戶端延遲">客戶端延遲</option>
+                    <option value="需求變更">需求變更</option>
+                    <option value="技術瓶頸">技術瓶頸</option>
+                    <option value="廠商因素">廠商因素</option>
+                    <option value="策略調整">策略調整 (中止用)</option>
+                    <option value="預算取消">預算取消 (中止用)</option>
+                    <option value="其他">其他</option>
+                </select>
+                <textarea v-model="delayForm.remark" class="w-full border rounded-lg px-3 py-2 h-20" placeholder="備註說明..."></textarea><div class="flex justify-end space-x-3 pt-4"><button @click="showDelayReasonModal=false" class="px-4 text-slate-500">取消</button><button @click="submitDelayModal" :disabled="isSubmitting" :class="modalMode.includes('abort')?'bg-red-600':'bg-orange-500'" class="text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50">確認</button></div></div></div>
         </template>
     </div>
 
@@ -604,20 +790,19 @@
                     return days;
                 },
 
+                /* --- 修改原本的 memberStats (移除工時計算) --- */
                 memberStats() {
                     return this.users.map(m => {
-                        let active=0, delay=0, periodHours=0;
+                        let active = 0, delay = 0;
                         this.allSubProjects.forEach(item => {
                             const sp = item.branch;
-                            if(sp.assignee === m.name || sp.currentHandler === m.name) {
-                                if(sp.status === 'in_progress') active++;
-                                if(sp.status !== 'aborted' && this.getProjectHealth(sp).type === 'delay') delay++;
-                                (sp.events || []).forEach(ev => {
-                                    if(ev.worker === m.name && this.checkDateMatch(ev.date)) periodHours += Number(ev.hours||0);
-                                });
+                            // 首頁只看當前狀態：是否負責人或球權在手
+                            if (sp.assignee === m.name || sp.currentHandler === m.name) {
+                                if (sp.status === 'in_progress') active++;
+                                if (sp.status !== 'aborted' && this.getProjectHealth(sp).type === 'delay') delay++;
                             }
                         });
-                        return { id:m.id, name:m.name, team:m.team, activeBranches:active, delayCount:delay, periodHours };
+                        return { id: m.id, name: m.name, team: m.team, activeBranches: active, delayCount: delay };
                     });
                 },
                 
@@ -659,6 +844,52 @@
                     const incomplete = sorted.filter(m => !m.isCompleted);
                     // 3. 只回傳「第一個」（最上面的），強迫按順序匹配
                     return incomplete.slice(0, 1); 
+                },
+                /* --- 新增在 computed 區塊內 --- */
+
+                // 計算每位成員在「篩選期間內」的工時
+                memberHoursStats() {
+                    // 建立一個 map 來暫存每個人的工時
+                    const stats = {}; 
+                    this.users.forEach(u => stats[u.name] = { name: u.name, team: u.team, hours: 0 });
+
+                    // 遍歷所有專案的所有日誌
+                    this.allSubProjects.forEach(item => {
+                        const sp = item.branch;
+                        if (sp.events) {
+                            sp.events.forEach(ev => {
+                                // 關鍵：只計算符合「歷史報表日期篩選器」的日誌
+                                if (this.checkDateMatch(ev.date) && stats[ev.worker]) {
+                                    stats[ev.worker].hours += Number(ev.hours || 0);
+                                }
+                            });
+                        }
+                    });
+
+                    // 轉為陣列並排序 (工時高的在上面)
+                    return Object.values(stats)
+                        .filter(s => s.hours > 0) // 只顯示有產出的成員
+                        .sort((a, b) => b.hours - a.hours);
+                },
+
+                // 計算各部門在「篩選期間內」的總工時
+                departmentHours() {
+                    const deptStats = {};
+                    let totalAll = 0;
+
+                    this.memberHoursStats.forEach(m => {
+                        if (!deptStats[m.team]) deptStats[m.team] = 0;
+                        deptStats[m.team] += m.hours;
+                        totalAll += m.hours;
+                    });
+
+                    return Object.entries(deptStats)
+                        .map(([team, hours]) => ({
+                            name: team,
+                            hours: hours,
+                            percent: totalAll ? Math.round((hours / totalAll) * 100) : 0
+                        }))
+                        .sort((a, b) => b.hours - a.hours);
                 },
             },
             methods: {
@@ -965,17 +1196,21 @@
                                 const deadline = new Date(this.currentSubProject.endDate);
                                 const finalDelay = Math.floor((today - deadline) / 86400000);
 
-                                if (finalDelay > 0) {
-                                    delayDetected = true;
-                                    this.currentSubProject.events.pop();
-                                    this.currentSubProject.currentHandler = oldHandler;
-                                    ms.isCompleted = false; 
-                                    this.tempCompletionData = { finalDelay, newEvent, milestoneId: ms.id, nextHandler };
-                                    this.showEventModal = false;
-                                    this.modalMode = 'sub_delay_complete';
-                                    this.showDelayReasonModal = true;
-                                    return; 
-                                } else {
+                                    if (finalDelay > 0) {
+                                        delayDetected = true;
+                                        this.currentSubProject.events.pop();
+                                        this.currentSubProject.currentHandler = oldHandler;
+                                        ms.isCompleted = false; 
+                                        this.tempCompletionData = { finalDelay, newEvent, milestoneId: ms.id, nextHandler };
+                                        this.showEventModal = false;
+                                        this.modalMode = 'sub_delay_complete';
+                                        
+                                        // ★★★ [新增] 這一行：初始化表單，避免 undefined 錯誤 ★★★
+                                        this.delayForm = { reason: '人力不足', remark: '' }; 
+                                        
+                                        this.showDelayReasonModal = true;
+                                        return; 
+                                    } else {
                                     isProjectCompleted = true;
                                     this.currentSubProject.status = 'completed'; 
                                     this.currentSubProject.finalDelayDays = 0;
@@ -1034,53 +1269,99 @@
                 openSubAbortModal() { this.modalMode = 'sub_abort'; this.delayForm = { reason: '策略調整', remark: '' }; this.showDelayReasonModal = true; },
                 tryCompleteSubProject() { const delayDays = this.getSubProjectDelayDays(this.currentSubProject); const hasUnfinishedMilestones = (this.currentSubProject.milestones || []).some(m => !m.isCompleted); if (delayDays > 0 || hasUnfinishedMilestones) { this.modalMode = 'sub_complete'; this.delayForm = { reason: '人力不足', remark: '' }; this.showDelayReasonModal = true; } else { if(confirm("確認結案？")) this.finalizeSubProject(); } },
                 
-                async submitDelayModal() { 
-                    this.isSubmitting = true;
-                    try {
-                        if (this.modalMode === 'sub_delay_complete') {
-                            const data = this.tempCompletionData;
-                            const ms = this.currentSubProject.milestones.find(m => m.id === data.milestoneId);
-                            
-                            if(!this.currentSubProject.events) this.currentSubProject.events = [];
-                            this.currentSubProject.events.push(data.newEvent);
-                            this.currentSubProject.currentHandler = data.nextHandler;
-                            if (ms) {
-                                ms.isCompleted = true;
-                                ms.completedDate = data.newEvent.date;
-                                ms.diffDays = Math.floor((new Date(data.newEvent.date) - new Date(ms.date)) / 86400000);
-                            }
-                            this.currentSubProject.status = 'completed';
-                            this.currentSubProject.finalDelayDays = data.finalDelay;
-                            this.currentSubProject.delayReason = this.delayForm.reason;
-                            this.currentSubProject.delayRemark = this.delayForm.remark;
-                            this.currentSubProject.completedDate = data.newEvent.date;
+/* --- 修改 methods 中的 submitDelayModal --- */
+async submitDelayModal() {
+    this.isSubmitting = true;
+    try {
+        // 1. 處理：系統自動偵測的延遲結案 (來自 saveEvent)
+        if (this.modalMode === 'sub_delay_complete') {
+            const data = this.tempCompletionData;
+            if (!data) throw new Error("暫存資料遺失，請重新操作");
 
-                            await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), {
-                                events: this.currentSubProject.events,
-                                currentHandler: data.nextHandler,
-                                milestones: this.currentSubProject.milestones,
-                                status: 'completed',
-                                finalDelayDays: data.finalDelay,
-                                delayReason: this.delayForm.reason,
-                                delayRemark: this.delayForm.remark,
-                                completedDate: data.newEvent.date
-                            });
-                            
-                            this.showDelayReasonModal = false;
-                            return;
-                        }
+            const ms = this.currentSubProject.milestones.find(m => m.id === data.milestoneId);
+            
+            // 更新本地資料結構
+            if(!this.currentSubProject.events) this.currentSubProject.events = [];
+            this.currentSubProject.events.push(data.newEvent);
+            this.currentSubProject.currentHandler = data.nextHandler;
+            
+            if (ms) {
+                ms.isCompleted = true;
+                ms.completedDate = data.newEvent.date;
+                ms.diffDays = Math.floor((new Date(data.newEvent.date) - new Date(ms.date)) / 86400000);
+            }
+            
+            this.currentSubProject.status = 'completed';
+            this.currentSubProject.finalDelayDays = data.finalDelay;
+            this.currentSubProject.delayReason = this.delayForm.reason;
+            this.currentSubProject.delayRemark = this.delayForm.remark;
+            this.currentSubProject.completedDate = data.newEvent.date;
 
-                        if (this.modalMode === 'parent_abort') { 
-                            if(confirm("確定中止此母專案？")) { await updateDoc(doc(db, "projects", this.currentParentProject.id), { status: 'aborted', delayReason: this.delayForm.reason, delayRemark: this.delayForm.remark }); this.currentView = 'dashboard'; } 
-                        } else if (this.modalMode === 'sub_abort') { 
-                            await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), { status: 'aborted', delayReason: this.delayForm.reason, delayRemark: this.delayForm.remark });
-                        } else { 
-                            const currentDelay = this.getSubProjectDelayDays(this.currentSubProject); 
-                            await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), { delayReason: this.delayForm.reason, delayRemark: this.delayForm.remark, finalDelayDays: currentDelay > 0 ? currentDelay : 0, status: 'completed' }); 
-                        } 
-                        this.showDelayReasonModal = false; 
-                    } finally { this.isSubmitting = false; }
-                },
+            // 寫入資料庫
+            await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), {
+                events: this.currentSubProject.events,
+                currentHandler: data.nextHandler,
+                milestones: this.currentSubProject.milestones,
+                status: 'completed',
+                finalDelayDays: data.finalDelay,
+                delayReason: this.delayForm.reason,
+                delayRemark: this.delayForm.remark || '',  // 加上 || '' 確保永遠是字串
+                completedDate: data.newEvent.date
+            });
+        } 
+        
+        // 2. 處理：母專案中止
+        else if (this.modalMode === 'parent_abort') {
+            if(confirm("確定中止此母專案？")) {
+                await updateDoc(doc(db, "projects", this.currentParentProject.id), { 
+                    status: 'aborted', 
+                    delayReason: this.delayForm.reason, 
+                    delayRemark: this.delayForm.remark || '',  // 加上 || '' 確保永遠是字串 
+                });
+                this.currentView = 'dashboard';
+            }
+        } 
+        
+        // 3. 處理：子專案中止
+        else if (this.modalMode === 'sub_abort') {
+            await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), { 
+                status: 'aborted', 
+                delayReason: this.delayForm.reason, 
+                delayRemark: this.delayForm.remark || '',  // 加上 || '' 確保永遠是字串 
+            });
+            this.currentSubProject.status = 'aborted'; // 手動更新本地狀態
+        } 
+        
+        // 4. 處理：手動點擊結案按鈕 (Manual Complete)
+        else {
+            const currentDelay = this.getSubProjectDelayDays(this.currentSubProject);
+            const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
+            
+            await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), { 
+                delayReason: this.delayForm.reason, 
+                delayRemark: this.delayForm.remark || '',  // 加上 || '' 確保永遠是字串 
+                finalDelayDays: currentDelay > 0 ? currentDelay : 0, 
+                status: 'completed',
+                completedDate: today 
+            });
+            
+            // 手動更新本地狀態
+            this.currentSubProject.status = 'completed';
+            this.currentSubProject.finalDelayDays = currentDelay > 0 ? currentDelay : 0;
+        }
+
+        // --- 成功後執行 ---
+        alert("資料已儲存");
+        this.showDelayReasonModal = false; // 確保關閉視窗
+        this.delayForm = { reason: '人力不足', remark: '' }; // 重置表單
+
+    } catch(e) {
+        console.error(e);
+        alert("儲存失敗，請檢查網路或重試：" + e.message);
+    } finally {
+        this.isSubmitting = false;
+    }
+},
                 
                 async finalizeSubProject() { 
                     this.isSubmitting = true;
