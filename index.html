@@ -109,6 +109,7 @@
 <body class="text-slate-800 h-screen w-screen overflow-hidden text-left antialiased">
 
     <div id="app" class="h-full w-full flex flex-col" v-cloak>
+        <audio id="notification-sound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_1720817-*024.mp3" preload="auto"></audio>
 
         <div v-if="userParams && !dataReady" class="fixed inset-0 z-[10000] bg-slate-50 flex flex-col items-center justify-center">
             <div class="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -136,8 +137,19 @@
         </div>
 
         <template v-else-if="dataReady">
-            <header class="bg-white border-b border-slate-200 h-16 flex items-center px-6 justify-between flex-shrink-0 z-20 relative shadow-sm">
-                <div class="font-bold text-xl flex items-center tracking-tight text-slate-800"><div class="w-8 h-8 rounded bg-indigo-600 flex items-center justify-center text-white text-xs mr-3"><i class="fas fa-rocket"></i></div>上洋行銷部 <span class="font-normal text-slate-400 mx-2">/</span> 專案管理系統</div>
+            <header class="bg-white border-b border-slate-200 h-16 flex items-center px-4 md:px-6 justify-between flex-shrink-0 z-20 relative shadow-sm">
+                <div class="font-bold text-xl flex items-center tracking-tight text-slate-800">
+                    <button @click="showMobileSidebar = !showMobileSidebar" class="mr-4 text-slate-500 hover:text-indigo-600 md:hidden">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                    <div class="w-8 h-8 rounded bg-indigo-600 flex items-center justify-center text-white text-xs mr-3 flex-shrink-0">
+                        <i class="fas fa-rocket"></i>
+                    </div>
+                    <span class="hidden md:inline">上洋行銷部</span>
+                    <span class="md:hidden">上洋行銷</span>
+                    <span class="font-normal text-slate-400 mx-2">/</span> 
+                    <span class="text-sm md:text-xl">戰情室</span>
+                </div>
                 <div class="flex items-center gap-4">
                     <div class="relative">
                         <div @click="showNotifications = !showNotifications" class="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 flex items-center justify-center cursor-pointer transition relative">
@@ -154,14 +166,17 @@
                 </div>
             </header>
 
-            <div class="flex flex-1 w-full overflow-hidden items-stretch" @click="showNotifications=false">
+            <div class="flex flex-1 w-full overflow-hidden items-stretch relative" @click="showNotifications=false">
                 
-                <div class="w-64 bg-slate-900 text-slate-300 flex flex-col shadow-inner flex-shrink-0 h-full border-r border-slate-800">
+                <!-- 手機版遮罩層 -->
+                <div v-if="showMobileSidebar" @click="showMobileSidebar = false" class="fixed inset-0 bg-slate-900/80 z-30 md:hidden fade-in"></div>
+                
+                <div :class="['bg-slate-900 text-slate-300 flex flex-col shadow-inner flex-shrink-0 h-full border-r border-slate-800 transition-transform duration-300 ease-in-out md:translate-x-0 md:relative fixed z-40 w-64', showMobileSidebar ? 'translate-x-0' : '-translate-x-full']">
                     <div class="flex-1 overflow-y-auto no-scrollbar py-4">
                         <div class="px-3 mb-4 space-y-1">
-                            <button @click="currentView = 'dashboard'; filterStatus = 'all'" :class="['w-full text-left px-3 py-2.5 rounded-lg flex items-center transition', currentView === 'dashboard' ? 'bg-indigo-600 text-white' : 'hover:bg-slate-800']"><i class="fas fa-chart-pie w-6 opacity-70"></i> 戰情儀表板</button>
-                            <button @click="currentView = 'history_report'" :class="['w-full text-left px-3 py-2.5 rounded-lg flex items-center transition', currentView === 'history_report' ? 'bg-indigo-600 text-white' : 'hover:bg-slate-800']"><i class="fas fa-history w-6 opacity-70"></i> 歷史績效報表</button>
-                            <button @click="currentView = 'my_workspace'; workspaceTab='tasks'" :class="['w-full text-left px-3 py-2.5 rounded-lg flex items-center transition', currentView === 'my_workspace' ? 'bg-indigo-600 text-white' : 'hover:bg-slate-800']"><i class="fas fa-tasks w-6 opacity-70"></i> 我的工作區</button>
+                            <button @click="currentView = 'dashboard'; filterStatus = 'all'; showMobileSidebar = false" :class="['w-full text-left px-3 py-2.5 rounded-lg flex items-center transition', currentView === 'dashboard' ? 'bg-indigo-600 text-white' : 'hover:bg-slate-800']"><i class="fas fa-chart-pie w-6 opacity-70"></i> 戰情儀表板</button>
+                            <button @click="currentView = 'history_report'; showMobileSidebar = false" :class="['w-full text-left px-3 py-2.5 rounded-lg flex items-center transition', currentView === 'history_report' ? 'bg-indigo-600 text-white' : 'hover:bg-slate-800']"><i class="fas fa-history w-6 opacity-70"></i> 歷史績效報表</button>
+                            <button @click="currentView = 'my_workspace'; workspaceTab='tasks'; showMobileSidebar = false" :class="['w-full text-left px-3 py-2.5 rounded-lg flex items-center transition', currentView === 'my_workspace' ? 'bg-indigo-600 text-white' : 'hover:bg-slate-800']"><i class="fas fa-tasks w-6 opacity-70"></i> 我的工作區</button>
                         </div>
                         <div class="px-3 mb-2"><div class="relative"><input v-model="sidebarSearch" type="text" class="w-full bg-slate-800 border border-slate-700 rounded-lg py-1.5 pl-8 pr-3 text-xs text-slate-300 placeholder-slate-500 outline-none focus:border-indigo-500" placeholder="搜尋專案或品牌..."><i class="fas fa-search absolute left-2.5 top-2 text-slate-500 text-xs"></i></div></div>
                         <div class="px-2 mt-2">
@@ -538,8 +553,7 @@
                 <textarea v-model="delayForm.remark" class="w-full border rounded-lg px-3 py-2 h-20" placeholder="備註說明..."></textarea><div class="flex justify-end space-x-3 pt-4"><button @click="showDelayReasonModal=false" class="px-4 text-slate-500">取消</button><button @click="submitDelayModal" :disabled="isSubmitting" :class="modalMode.includes('abort')?'bg-red-600':'bg-orange-500'" class="text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50">確認</button></div></div></div>
         </template>
     </div>
-
-    <script type="module">
+<script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -595,7 +609,7 @@
                     showEventModal: false, eventForm: {}, 
                     showDelayReasonModal: false, delayForm: {}, modalMode: 'sub_complete',
                     showArchived: false,
-                    showMemberDetailModal: false, currentMemberDetail: {}, memberDetailData: { active: {}, overall: {} },
+                    showMemberDetailModal: false, currentMemberDetail: { name: '', team: '', role: '' }, memberDetailData: { active: { tasks: [] }, overall: { projects: [], reasons: [] } },
                     showNotifications: false, notifications: [], detailTab: 'overview', newComment: '', showMentionList: false,
                     calendarYear: new Date().getFullYear(), calendarMonth: new Date().getMonth() + 1,
                     memberDetailYear: 'all', 
@@ -604,12 +618,10 @@
                     statusMap: { 'setup': '規劃中', 'in_progress': '執行中', 'completed': '已結案', 'aborted': '已中止' },
                     dataReady: false, isSubmitting: false,
                     tempCompletionData: null,
-                    // Gantt
-                    ganttCellWidth: 40,
-                    isDraggingGantt: false,
-                    startGanttX: 0,
-                    scrollLeftGantt: 0,
-                    workspaceTab: 'tasks'
+                    ganttCellWidth: 40, isDraggingGantt: false, startGanttX: 0, scrollLeftGantt: 0,
+                    workspaceTab: 'tasks',
+                    showMobileSidebar: false,
+                    hasCheckedDailyTasks: false
                 }
             },
             async mounted() {
@@ -619,7 +631,11 @@
                         const q = query(collection(db, "users"), where("email", "==", user.email));
                         const snapshot = await getDocs(q);
                         if (!snapshot.empty) this.currentUserId = snapshot.docs[0].id;
-                        else { const newUser = { name: user.email.split('@')[0], email: user.email, role: 'member', team: 'mkgt' }; const docRef = await addDoc(collection(db, "users"), newUser); this.currentUserId = docRef.id; }
+                        else { 
+                            const newUser = { name: user.email.split('@')[0], email: user.email, role: 'member', team: 'mkgt' }; 
+                            const docRef = await addDoc(collection(db, "users"), newUser); 
+                            this.currentUserId = docRef.id; 
+                        }
                         this.initListeners();
                     } else { this.userParams = null; this.currentUserId = null; this.dataReady = false; }
                 });
@@ -639,7 +655,19 @@
                     return '確認結案 (完成)'; 
                 },
                 getSubsForParent() { return (pid) => this.indexedSubsByParent[pid] || []; },
-                
+                myHandledBranches() {
+                    const list = [];
+                    this.rawParents.forEach(p => {
+                        const subs = this.indexedSubsByParent[p.id] || [];
+                        const brandName = this.indexedBrandMap[p.brandId] || 'Unknown';
+                        subs.forEach(sp => {
+                            if (sp.currentHandler === this.currentUser.name && sp.status === 'in_progress') {
+                                list.push({ brand: {name: brandName}, parent: p, sub: sp });
+                            }
+                        });
+                    });
+                    return list;
+                },
                 allSubProjects() {
                     const list = [];
                     this.rawParents.forEach(p => {
@@ -650,50 +678,29 @@
                     });
                     return list;
                 },
-                    /* --- 修改 filteredMonitorList 內的排序邏輯 --- */
-
-                    filteredMonitorList() {
-                        const candidates = this.allSubProjects.filter(i => (i.branch.status === 'in_progress')); 
-                        
-                        candidates.sort((a, b) => {
-                            // 第一層排序：依照母專案的開案日期 (startDate)
-                            const dateA = new Date(a.parent.startDate || '1970-01-01');
-                            const dateB = new Date(b.parent.startDate || '1970-01-01');
-                            
-                            if (dateA.getTime() !== dateB.getTime()) {
-                                return dateA - dateB; // 日期早的排上面
-                            }
-                            
-                            // 第二層排序：如果開案日期相同，則依照「母專案標題」的第一個字元（全標題）排序
-                            // 這能確保同一個母專案的項目會排在一起，且多個相同日期的母專案會按名稱順序排列
-                            if (a.parent.title !== b.parent.title) {
-                                return a.parent.title.localeCompare(b.parent.title, 'zh-TW');
-                            }
-
-                            // 第三層排序：同母專案內，依子專案截止日排序
-                            const subEndA = new Date(a.branch.endDate || '9999-12-31');
-                            const subEndB = new Date(b.branch.endDate || '9999-12-31');
-                            return subEndA - subEndB;
-                        });
-
-                        if (this.filterStatus === 'all') return candidates;
-                        if (this.filterStatus === 'delayed') return candidates.filter(i => this.getProjectHealth(i.branch).type === 'delay');
-                        return candidates;
-                    },
-
+                filteredMonitorList() {
+                    const candidates = this.allSubProjects.filter(i => (i.branch.status === 'in_progress')); 
+                    candidates.sort((a, b) => {
+                        const dateA = new Date(a.parent.startDate || '1970-01-01');
+                        const dateB = new Date(b.parent.startDate || '1970-01-01');
+                        if (dateA.getTime() !== dateB.getTime()) return dateA - dateB;
+                        if (a.parent.title !== b.parent.title) return a.parent.title.localeCompare(b.parent.title, 'zh-TW');
+                        const subEndA = new Date(a.branch.endDate || '9999-12-31');
+                        const subEndB = new Date(b.branch.endDate || '9999-12-31');
+                        return subEndA - subEndB;
+                    });
+                    if (this.filterStatus === 'all') return candidates;
+                    if (this.filterStatus === 'delayed') return candidates.filter(i => this.getProjectHealth(i.branch).type === 'delay');
+                    return candidates;
+                },
                 scopedStats() {
                     let activeCount=0, activeDelay=0, activeDelayDays=0;
                     let overallCount=0, overallDelay=0, overallDelayDays=0;
                     let activeReasons={}, overallReasons={}, archivedList=[];
                     let totalPeriodHours = 0; 
-
                     this.allSubProjects.forEach(item => {
                         const sp = item.branch;
-                        (sp.events || []).forEach(ev => {
-                            if (this.checkDateMatch(ev.date)) {
-                                totalPeriodHours += Number(ev.hours || 0);
-                            }
-                        });
+                        (sp.events || []).forEach(ev => { if (this.checkDateMatch(ev.date)) totalPeriodHours += Number(ev.hours || 0); });
                         if(sp.status === 'in_progress') {
                             activeCount++;
                             const d = this.getProjectHealth(sp);
@@ -703,23 +710,19 @@
                         if(this.currentView === 'history_report') {
                              const isMatch = this.checkDateMatch(sp.completedDate || sp.endDate);
                              if((sp.status === 'completed' || sp.status === 'aborted') && isMatch) {
-                                overallCount++;
-                                archivedList.push(item);
+                                overallCount++; archivedList.push(item);
                                 const d = sp.finalDelayDays || 0;
                                 if(d > 0 && sp.status !== 'aborted') { overallDelay++; overallDelayDays += d; }
                                 if(sp.delayReason) overallReasons[sp.delayReason] = (overallReasons[sp.delayReason] || 0) + 1;
                              }
                         }
                     });
-
                     return {
                         active: { count: activeCount, delayRate: activeCount?Math.round(activeDelay/activeCount*100):0, totalDelayDays: activeDelayDays, reasonList: this.objToArr(activeReasons, activeCount) },
                         overall: { totalProjects: overallCount, delayRate: overallCount?Math.round(overallDelay/overallCount*100):0, totalDelayDays: overallDelayDays, reasonList: this.objToArr(overallReasons, overallCount) },
-                        archivedList,
-                        archivedHours: totalPeriodHours
+                        archivedList, archivedHours: totalPeriodHours
                     };
                 },
-
                 currentProjectStats() {
                     if (!this.currentParentProject) return {};
                     const subs = this.indexedSubsByParent[this.currentParentProject.id] || [];
@@ -735,47 +738,36 @@
                     });
                     return { total: subs.length, completed, act, delays, maxDelay, progress: subs.length ? Math.round(totalPercent/subs.length) : 0 };
                 },
-
+                
+                // --- 修改處：只顯示與自己相關的專案行事曆 ---
                 calendarDays() {
                     const days = [];
-                    // 取得當月第一天
                     const firstDayOfMonth = new Date(this.calendarYear, this.calendarMonth - 1, 1);
-                    // 取得當月最後一天
                     const lastDayOfMonth = new Date(this.calendarYear, this.calendarMonth, 0);
-                    
-                    // 計算日曆起始日（回到該週的週日）
                     const startDay = new Date(firstDayOfMonth);
                     startDay.setDate(1 - firstDayOfMonth.getDay());
-
-                    // 計算日曆結束日（補齊到該週的週六）
                     const endDay = new Date(lastDayOfMonth);
                     endDay.setDate(lastDayOfMonth.getDate() + (6 - lastDayOfMonth.getDay()));
-
-                    // 計算總共需要顯示的天數（不再死板固定 42 天）
                     const totalDays = Math.round((endDay - startDay) / (1000 * 60 * 60 * 24)) + 1;
-
                     const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
                     
                     for (let i = 0; i < totalDays; i++) {
                         const current = new Date(startDay);
                         current.setDate(startDay.getDate() + i);
-                        
                         const isoDate = current.toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
                         const isCurrentMonth = current.getMonth() === (this.calendarMonth - 1);
-                        
-                        const dayObj = { 
-                            date: current.getDate(), 
-                            isCurrentMonth, 
-                            isToday: isoDate === todayStr, 
-                            isoDate, 
-                            events: [] 
-                        };
-                        days.push(dayObj);
+                        days.push({ date: current.getDate(), isCurrentMonth, isToday: isoDate === todayStr, isoDate, events: [] });
                     }
 
-                    // 事件匹配邏輯（保持不變）
                     this.allSubProjects.forEach(item => {
                         const sp = item.branch;
+                        // 篩選：只顯示 我是母專案擁有者 OR 我是子專案負責人 OR 我是球權持有者
+                        const isMine = item.parent.owner === this.currentUser.name || 
+                                       sp.assignee === this.currentUser.name || 
+                                       sp.currentHandler === this.currentUser.name;
+
+                        if (!isMine) return; // 如果不是我的，跳過
+
                         if(sp.endDate) {
                             const day = days.find(d => d.isoDate === sp.endDate);
                             if(day) day.events.push({ id: sp.id, title: sp.title, type: 'deadline', sub: sp, parent: item.parent });
@@ -789,14 +781,13 @@
                     });
                     return days;
                 },
+                // ----------------------------------------------------
 
-                /* --- 修改原本的 memberStats (移除工時計算) --- */
                 memberStats() {
                     return this.users.map(m => {
                         let active = 0, delay = 0;
                         this.allSubProjects.forEach(item => {
                             const sp = item.branch;
-                            // 首頁只看當前狀態：是否負責人或球權在手
                             if (sp.assignee === m.name || sp.currentHandler === m.name) {
                                 if (sp.status === 'in_progress') active++;
                                 if (sp.status !== 'aborted' && this.getProjectHealth(sp).type === 'delay') delay++;
@@ -805,18 +796,6 @@
                         return { id: m.id, name: m.name, team: m.team, activeBranches: active, delayCount: delay };
                     });
                 },
-                
-                myHandledBranches() {
-                    return this.allSubProjects
-                        .filter(i => i.branch.currentHandler === this.currentUser.name && i.branch.status === 'in_progress')
-                        .map(i => ({ ...i, sub: i.branch }))
-                        .sort((a,b) => {
-                            if (!a.branch.endDate) return 1;
-                            if (!b.branch.endDate) return -1;
-                            return new Date(a.branch.endDate) - new Date(b.branch.endDate);
-                        });
-                },
-                
                 myOwnedBranches() {
                     const list = [];
                     this.rawParents.filter(p => p.owner === this.currentUser.name && p.status==='active').forEach(p => {
@@ -825,7 +804,6 @@
                     this.allSubProjects.filter(i => i.branch.assignee === this.currentUser.name && i.branch.status !== 'completed' && i.branch.status !== 'aborted').forEach(i => {
                         list.push({ brand: i.brand, parent: i.parent, sub: i.branch, isParent: false, sortDate: i.branch.endDate });
                     });
-                    
                     return list.sort((a,b) => {
                         if (a.isParent && !b.isParent) return -1; 
                         if (!a.isParent && b.isParent) return 1;
@@ -834,106 +812,108 @@
                         return da - db;
                     });
                 },
-                //incompleteMilestones() { return this.currentSubProject?.milestones?.filter(m => !m.isCompleted) || []; }
-                /* --- 修改 computed 中的 incompleteMilestones --- */
                 incompleteMilestones() { 
                     if (!this.currentSubProject?.milestones) return [];
-                    // 1. 先依照日期排序
                     const sorted = [...this.currentSubProject.milestones].sort((a,b) => new Date(a.date) - new Date(b.date));
-                    // 2. 篩選出未完成的
-                    const incomplete = sorted.filter(m => !m.isCompleted);
-                    // 3. 只回傳「第一個」（最上面的），強迫按順序匹配
-                    return incomplete.slice(0, 1); 
+                    return sorted.filter(m => !m.isCompleted).slice(0, 1); 
                 },
-                /* --- 新增在 computed 區塊內 --- */
-
-                // 計算每位成員在「篩選期間內」的工時
                 memberHoursStats() {
-                    // 建立一個 map 來暫存每個人的工時
                     const stats = {}; 
                     this.users.forEach(u => stats[u.name] = { name: u.name, team: u.team, hours: 0 });
-
-                    // 遍歷所有專案的所有日誌
                     this.allSubProjects.forEach(item => {
                         const sp = item.branch;
                         if (sp.events) {
                             sp.events.forEach(ev => {
-                                // 關鍵：只計算符合「歷史報表日期篩選器」的日誌
-                                if (this.checkDateMatch(ev.date) && stats[ev.worker]) {
-                                    stats[ev.worker].hours += Number(ev.hours || 0);
-                                }
+                                if (this.checkDateMatch(ev.date) && stats[ev.worker]) stats[ev.worker].hours += Number(ev.hours || 0);
                             });
                         }
                     });
-
-                    // 轉為陣列並排序 (工時高的在上面)
-                    return Object.values(stats)
-                        .filter(s => s.hours > 0) // 只顯示有產出的成員
-                        .sort((a, b) => b.hours - a.hours);
+                    return Object.values(stats).filter(s => s.hours > 0).sort((a, b) => b.hours - a.hours);
                 },
-
-                // 計算各部門在「篩選期間內」的總工時
                 departmentHours() {
-                    const deptStats = {};
-                    let totalAll = 0;
-
+                    const deptStats = {}; let totalAll = 0;
                     this.memberHoursStats.forEach(m => {
                         if (!deptStats[m.team]) deptStats[m.team] = 0;
-                        deptStats[m.team] += m.hours;
-                        totalAll += m.hours;
+                        deptStats[m.team] += m.hours; totalAll += m.hours;
                     });
-
-                    return Object.entries(deptStats)
-                        .map(([team, hours]) => ({
-                            name: team,
-                            hours: hours,
-                            percent: totalAll ? Math.round((hours / totalAll) * 100) : 0
-                        }))
-                        .sort((a, b) => b.hours - a.hours);
+                    return Object.entries(deptStats).map(([team, hours]) => ({
+                        name: team, hours: hours, percent: totalAll ? Math.round((hours / totalAll) * 100) : 0
+                    })).sort((a, b) => b.hours - a.hours);
                 },
             },
             methods: {
+                requestNotificationPermission() {
+                    if (!("Notification" in window)) return;
+                    if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+                        Notification.requestPermission();
+                    }
+                },
+                sendBrowserNotification(title, body, tag = null) {
+                    if (Notification.permission === "granted") {
+                        new Notification(`[上洋戰情室] ${title}`, { 
+                            body, tag, icon: 'https://www.upyoung.com.tw/assets/images/logo.png' 
+                        });
+                    }
+                },
+                checkDailyTasks() {
+                    if (this.hasCheckedDailyTasks) return;
+                    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
+                    const myTasks = this.myHandledBranches;
+                    myTasks.forEach(item => {
+                        const sp = item.sub;
+                        if (!sp.endDate) return;
+                        if (sp.endDate === today) {
+                            this.sendBrowserNotification("今日截止提醒", `通知原因：工作「${sp.title}」今日截止，請確認進度。`, `today-${sp.id}`);
+                        } else if (sp.endDate < today) {
+                            const days = Math.floor((new Date(today) - new Date(sp.endDate)) / 86400000);
+                            this.sendBrowserNotification("逾期處理提醒", `通知原因：工作「${sp.title}」已逾期 ${days} 天尚未處理完成。`, `overdue-${sp.id}`);
+                        }
+                    });
+                    this.hasCheckedDailyTasks = true;
+                },
                 initListeners() {
                     try {
+                        this.requestNotificationPermission();
                         let loadCount = 0;
-                        const checkReady = () => { loadCount++; if(loadCount >= 4) { this.buildIndexes(); this.dataReady = true; } };
-                        setTimeout(() => { if(!this.dataReady) { this.buildIndexes(); this.dataReady = true; } }, 4000);
-
+                        const checkReady = () => { 
+                            loadCount++; 
+                            if(loadCount >= 4) { 
+                                this.buildIndexes(); this.dataReady = true; 
+                                setTimeout(() => this.checkDailyTasks(), 2000);
+                            } 
+                        };
                         const safeProject = (d) => ({ id: d.id, brandId:'', title:'Untitled', status:'active', startDate:'', endDate:'', owner:'Unknown', ...d.data() });
                         const safeSub = (d) => {
                             const data = d.data();
-                            return { 
-                                id: d.id, parentId:'', title:'Untitled', status:'setup', 
-                                ...data,
-                                milestones: Array.isArray(data.milestones)?data.milestones:[], 
-                                events: Array.isArray(data.events)?data.events:[], 
-                                links: Array.isArray(data.links)?data.links:[], 
-                                comments: Array.isArray(data.comments)?data.comments:[]
-                            };
+                            return { id: d.id, parentId:'', title:'Untitled', status:'setup', ...data, milestones: data.milestones||[], events: data.events||[], links: data.links||[], comments: data.comments||[] };
                         };
-
                         onSnapshot(collection(db, "users"), (s) => { this.users = s.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => (a.team||'').localeCompare(b.team||'')); checkReady(); }); 
-                        onSnapshot(collection(db, "brands"), (s) => { this.brands = s.docs.map(d => ({id: d.id, ...d.data()})); this.rebuildBrandMap(); checkReady(); }); 
-                        onSnapshot(collection(db, "projects"), (s) => { this.rawParents = s.docs.map(d => safeProject(d)); this.buildIndexes(); checkReady(); });
-                        onSnapshot(collection(db, "sub_projects"), (s) => { this.rawSubs = s.docs.map(d => safeSub(d)); this.buildIndexes(); checkReady(); });
+                        onSnapshot(collection(db, "brands"), (s) => { this.brands = s.docs.map(d => ({id: d.id, ...d.data()})); checkReady(); }); 
+                        onSnapshot(collection(db, "projects"), (s) => { this.rawParents = s.docs.map(d => safeProject(d)); checkReady(); });
+                        onSnapshot(collection(db, "sub_projects"), (s) => { this.rawSubs = s.docs.map(d => safeSub(d)); checkReady(); });
 
-                        this.$watch(() => this.currentUser?.name, (newVal) => { if(newVal) { onSnapshot(query(collection(db, "notifications"), where("recipient", "==", newVal)), (snap) => { this.notifications = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => new Date(b.time) - new Date(a.time)); }); } });
+                        this.$watch(() => this.currentUser?.name, (newVal) => { 
+                            if(newVal) { 
+                                onSnapshot(query(collection(db, "notifications"), where("recipient", "==", newVal)), (snap) => { 
+                                    const oldLen = this.notifications.length;
+                                    this.notifications = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => new Date(b.time) - new Date(a.time)); 
+                                    if (this.dataReady && this.notifications.length > oldLen) {
+                                        const latest = this.notifications[0];
+                                        if (!latest.read && latest.sender !== this.currentUser.name) {
+                                            this.sendBrowserNotification("收到新通知", `通知原因：${latest.message}`, `notif-${latest.id}`);
+                                        }
+                                    }
+                                }); 
+                            } 
+                        });
                     } catch (e) { console.error(e); this.dataReady = true; }
                 },
-
                 buildIndexes() {
                     const subMap = {};
-                    this.rawSubs.forEach(s => {
-                        if (!subMap[s.parentId]) subMap[s.parentId] = [];
-                        subMap[s.parentId].push(s);
-                    });
+                    this.rawSubs.forEach(s => { if (!subMap[s.parentId]) subMap[s.parentId] = []; subMap[s.parentId].push(s); });
                     this.indexedSubsByParent = subMap;
-
-                    const pMap = {};
-                    this.rawParents.forEach(p => pMap[p.id] = p);
-                    this.indexedParentMap = pMap;
-
-                    this.rebuildBrandMap();
+                    const pMap = {}; this.rawParents.forEach(p => pMap[p.id] = p); this.indexedParentMap = pMap;
+                    const bMap = {}; this.brands.forEach(b => bMap[b.id] = b.name); this.indexedBrandMap = bMap;
                 },
                 rebuildBrandMap() {
                     const bMap = {};
@@ -941,76 +921,87 @@
                     this.indexedBrandMap = bMap;
                 },
                 
+                openMemberDetail(m) { 
+                    this.currentMemberDetail = m; 
+                    this.recalcMemberDetail(); 
+                    this.showMemberDetailModal = true; 
+                },
+                recalcMemberDetail() { 
+                    const m = this.currentMemberDetail; 
+                    let activeCount = 0, holdDaysSum = 0, activeTasks = [], overallCount = 0, overallDelay = 0, overallDelayDays = 0, overallReasons = {}, ownedList = []; 
+                    
+                    this.allSubProjects.forEach(item => { 
+                        const sp = item.branch; 
+                        if(sp.currentHandler === m.name && sp.status === 'in_progress') { 
+                            activeCount++; 
+                            const hd = this.getDaysHeld(sp.lastHandoffDate); 
+                            holdDaysSum += hd; 
+                            activeTasks.push({ parent: item.parent, sub: sp, holdDays: hd }); 
+                        } 
+                        if(sp.assignee === m.name) { 
+                            if (this.memberDetailYear === 'all' || (sp.endDate && sp.endDate.startsWith(this.memberDetailYear))) { 
+                                overallCount++; 
+                                const d = sp.finalDelayDays !== undefined ? sp.finalDelayDays : this.getSubProjectDelayDays(sp); 
+                                if(d > 0 && sp.status !== 'aborted') { overallDelay++; overallDelayDays += d; } 
+                                if((sp.status === 'completed' || sp.status === 'aborted') && sp.delayReason) overallReasons[sp.delayReason] = (overallReasons[sp.delayReason] || 0) + 1; 
+                                ownedList.push({ parent: item.parent, sub: sp }); 
+                            } 
+                        } 
+                    }); 
+                    
+                    this.memberDetailData = { 
+                        active: { 
+                            count: activeCount, 
+                            avgHoldDays: activeCount === 0 ? 0 : Math.round(holdDaysSum / activeCount), 
+                            tasks: activeTasks.sort((a,b) => b.holdDays - a.holdDays) 
+                        }, 
+                        overall: { 
+                            total: overallCount, 
+                            delayRate: overallCount === 0 ? 0 : Math.round((overallDelay / overallCount) * 100), 
+                            totalDelayDays: overallDelayDays, 
+                            reasons: Object.entries(overallReasons).map(([k,v]) => ({name: k, count: v, percent: Math.round(v/overallCount*100) || 0})).sort((a,b) => b.count - a.count), 
+                            projects: ownedList.sort((a,b) => new Date(b.sub.endDate) - new Date(a.sub.endDate)) 
+                        } 
+                    }; 
+                },
+
                 objToArr(obj, total) { return Object.entries(obj).map(([k,v]) => ({name: k, count: v, percent: total?Math.round(v/total*100):0})).sort((a,b)=>b.count-a.count); },
                 checkDateMatch(dStr) { if(!dStr) return false; const d = new Date(dStr); return d.getFullYear() === this.currentYear && (this.currentMonth === 'all' || d.getMonth()+1 === this.currentMonth); },
-
                 toggleAuthMode() { this.isRegisterMode = !this.isRegisterMode; this.authError = ''; },
                 async handleAuth() { try { if (this.isRegisterMode) { if(!this.authForm.name) throw new Error("請輸入姓名"); await createUserWithEmailAndPassword(auth, this.authForm.email, this.authForm.password); await addDoc(collection(db, "users"), { email: this.authForm.email, name: this.authForm.name, team: this.authForm.team, role: this.authForm.role }); } else { await signInWithEmailAndPassword(auth, this.authForm.email, this.authForm.password); } } catch (e) { this.authError = e.message.replace("Firebase: ", ""); } },
                 logout() { signOut(auth); },
-                
                 async addBrand() { const n = prompt("品牌:"); if(n) await addDoc(collection(db, "brands"), { name: n }); },
                 toggleBrand(id) { this.brandExpandedState[id] = !this.brandExpandedState[id]; },
                 isBrandExpanded(id) { if (this.sidebarSearch) return true; return !!this.brandExpandedState[id]; },
-                // 在 methods 中找到 getMatchingProjects 並修改
                 getMatchingProjects(brandId) {
                     let projects = this.rawParents.filter(p => p.brandId === brandId && p.status === 'active');
-                    
-                    // 讓左側邊欄也依照開案日期排序
                     projects.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
-
                     if (!this.sidebarSearch) return projects;
                     const search = this.sidebarSearch.toLowerCase();
                     return projects.filter(p => p.title.toLowerCase().includes(search));
                 },
                 getArchivedProjectsByBrand(bid) { return this.rawParents.filter(p => p.brandId === bid && (p.status === 'completed' || p.status === 'aborted')); },
-
                 getSortedSubs(pid) {
                     const subs = this.indexedSubsByParent[pid] || [];
                     return [...subs].sort((a, b) => {
                         const aActive = (a.status === 'in_progress' || a.status === 'setup');
                         const bActive = (b.status === 'in_progress' || b.status === 'setup');
-                        if (aActive && !bActive) return -1;
-                        if (!aActive && bActive) return 1;
+                        if (aActive && !bActive) return -1; if (!aActive && bActive) return 1;
                         return new Date(a.endDate) - new Date(b.endDate);
                     });
                 },
-
-                // Draggable Gantt
-                startDrag(e) {
-                    this.isDraggingGantt = true;
-                    this.startGanttX = e.pageX - this.$refs.ganttContainer.offsetLeft;
-                    this.scrollLeftGantt = this.$refs.ganttContainer.scrollLeft;
-                },
-                doDrag(e) {
-                    if (!this.isDraggingGantt) return;
-                    e.preventDefault();
-                    const x = e.pageX - this.$refs.ganttContainer.offsetLeft;
-                    const walk = (x - this.startGanttX) * 2; // Scroll-fast
-                    this.$refs.ganttContainer.scrollLeft = this.scrollLeftGantt - walk;
-                },
-                stopDrag() {
-                    this.isDraggingGantt = false;
-                },
-
-                changeGanttZoom(delta) {
-                    this.ganttCellWidth = Math.max(20, Math.min(100, this.ganttCellWidth + delta));
-                },
+                startDrag(e) { this.isDraggingGantt = true; this.startGanttX = e.pageX - this.$refs.ganttContainer.offsetLeft; this.scrollLeftGantt = this.$refs.ganttContainer.scrollLeft; },
+                doDrag(e) { if (!this.isDraggingGantt) return; e.preventDefault(); const x = e.pageX - this.$refs.ganttContainer.offsetLeft; const walk = (x - this.startGanttX) * 2; this.$refs.ganttContainer.scrollLeft = this.scrollLeftGantt - walk; },
+                stopDrag() { this.isDraggingGantt = false; },
+                changeGanttZoom(delta) { this.ganttCellWidth = Math.max(20, Math.min(100, this.ganttCellWidth + delta)); },
                 getGanttDays(project) {
                     if (!project.startDate || !project.endDate) return [];
-                    const start = new Date(project.startDate);
-                    const end = new Date(project.endDate);
-                    start.setDate(start.getDate() - 2);
-                    end.setDate(end.getDate() + 5);
-
-                    const days = [];
-                    const curr = new Date(start);
+                    const start = new Date(project.startDate); const end = new Date(project.endDate);
+                    start.setDate(start.getDate() - 2); end.setDate(end.getDate() + 5);
+                    const days = []; const curr = new Date(start);
                     while (curr <= end) {
                         const day = curr.getDay();
-                        days.push({ 
-                            iso: curr.toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' }), 
-                            label: `${curr.getMonth()+1}/${curr.getDate()}`,
-                            isWeekend: day === 0 || day === 6
-                        });
+                        days.push({ iso: curr.toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' }), label: `${curr.getMonth()+1}/${curr.getDate()}`, isWeekend: day === 0 || day === 6 });
                         curr.setDate(curr.getDate() + 1);
                     }
                     return days;
@@ -1019,45 +1010,29 @@
                     if (!sp.startDate || !sp.endDate) return 'display: none';
                     const allDays = this.getGanttDays(parent);
                     if (allDays.length === 0) return 'display: none';
-                    
                     const startDayIndex = allDays.findIndex(d => d.iso === sp.startDate);
                     const endDayIndex = allDays.findIndex(d => d.iso === sp.endDate);
-                    
                     if (startDayIndex === -1) return 'display: none'; 
-                    const safeEndIndex = endDayIndex === -1 ? allDays.length - 1 : endDayIndex;
-                    
                     const left = startDayIndex * this.ganttCellWidth;
-                    const width = (safeEndIndex - startDayIndex + 1) * this.ganttCellWidth;
-                    
+                    const width = ((endDayIndex === -1 ? allDays.length - 1 : endDayIndex) - startDayIndex + 1) * this.ganttCellWidth;
                     return `left: ${left}px; width: ${Math.max(this.ganttCellWidth, width)}px`;
                 },
-
                 openProjectModal(bid) { this.projectForm = { brandId: bid, title: '', startDate: new Date().toISOString().split('T')[0], endDate: '' }; this.showProjectModal = true; },
                 async saveProject() { 
-                    if(!this.projectForm.title) return alert("請填寫資訊"); 
-                    this.isSubmitting = true;
-                    try {
-                        const payload = DataFactory.createProject(this.projectForm, this.currentUser);
-                        await addDoc(collection(db, "projects"), payload); 
-                        this.showProjectModal = false; 
-                    } catch(e) { console.error(e); alert("Error"); }
-                    finally { this.isSubmitting = false; }
+                    if(!this.projectForm.title) return alert("請填寫資訊"); this.isSubmitting = true;
+                    try { await addDoc(collection(db, "projects"), DataFactory.createProject(this.projectForm, this.currentUser)); this.showProjectModal = false; } catch(e) { console.error(e); } finally { this.isSubmitting = false; }
                 },
-
-                openBranchModal(pid) { this.openSubProjectModal(pid); },
-                openSubProjectModal(pid) { this.subProjectForm = { parentId: pid, title: '', assignee: this.currentUser.name }; this.showSubProjectModal = true; },
+                openBranchModal(pid) { this.subProjectForm = { parentId: pid, title: '', assignee: this.currentUser.name }; this.showSubProjectModal = true; },
                 async saveSubProject() { 
-                    if (!this.subProjectForm.title) return alert("請填寫名稱"); 
-                    this.isSubmitting = true;
-                    try {
+                    if (!this.subProjectForm.title) return alert("請填寫名稱"); this.isSubmitting = true;
+                    try { 
                         const newSub = DataFactory.createSubProject(this.subProjectForm, this.currentUser);
                         const docRef = await addDoc(collection(db, "sub_projects"), newSub); 
-                        if (newSub.assignee !== this.currentUser.name) { this.sendNotification(newSub.assignee, 'task', `您被指派負責新專案: ${newSub.title}`, this.subProjectForm.parentId, docRef.id); } 
+                        if (newSub.assignee !== this.currentUser.name) this.sendNotification(newSub.assignee, 'task', `您被指派負責新專案: ${newSub.title}`, this.subProjectForm.parentId, docRef.id); 
                         this.showSubProjectModal = false; 
                     } catch(e) { console.error(e); alert("Error"); }
                     finally { this.isSubmitting = false; }
                 },
-
                 openEditBranchModal() { this.editBranchForm = JSON.parse(JSON.stringify(this.currentSubProject)); this.showEditBranchModal = true; },
                 async saveEditedBranch() { 
                     this.isSubmitting = true;
@@ -1067,23 +1042,14 @@
                         this.showEditBranchModal = false; 
                     } finally { this.isSubmitting = false; }
                 },
-
                 addSetupMilestone() { this.setupForm.milestones.push({ id: 'ms'+Date.now(), date: '', title: '', isCompleted: false }); },
-                
                 async confirmSetup() { 
                     if (this.currentSubProject.assignee !== this.currentUser.name) return alert("權限不足：只有專案負責人才能進行規劃設定");
-
                     if (!this.setupForm.startDate) return alert("請設定專案開始日期");
                     if (this.setupForm.milestones.length === 0) return alert("請至少建立一個里程碑節點");
-
                     this.setupForm.milestones.sort((a, b) => new Date(a.date) - new Date(b.date));
-                    const lastMs = this.setupForm.milestones[this.setupForm.milestones.length - 1];
-                    this.setupForm.endDate = lastMs.date; 
-
+                    this.setupForm.endDate = this.setupForm.milestones[this.setupForm.milestones.length - 1].date; 
                     if (this.setupForm.startDate < this.currentParentProject.startDate) return alert(`子專案開始日不能早於母專案 (${this.currentParentProject.startDate})`);
-                    
-                    //if (this.setupForm.endDate > this.currentParentProject.endDate) return alert(`最後里程碑日期 (${this.setupForm.endDate}) 不能晚於母專案結束日 (${this.currentParentProject.endDate})`);
-                    
                     this.isSubmitting = true;
                     try { 
                         await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), { ...this.setupForm, status: 'in_progress' });
@@ -1093,27 +1059,15 @@
                     catch (e) { console.error(e); alert("更新失敗"); }
                     finally { this.isSubmitting = false; }
                 },
-
-                //async addResourceLink() { const title = prompt("連結名稱:"); if (!title) return; const url = prompt("網址 (URL):"); if (!url) return; const links = [...(this.currentSubProject.links || []), { title, url }]; await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), { links }); },
-                /* --- 修改 methods 中的 addResourceLink --- */
                 async addResourceLink() { 
-                    const title = prompt("連結名稱:"); 
-                    if (!title) return; 
-                    const url = prompt("網址 (URL):"); 
-                    if (!url) return; 
-                    
-                    // 準備要寫入的新陣列
+                    const title = prompt("連結名稱:"); if (!title) return; 
+                    const url = prompt("網址 (URL):"); if (!url) return; 
                     const newLinkObj = { title, url };
                     const links = [...(this.currentSubProject.links || []), newLinkObj]; 
-                    
-                    // 更新資料庫
                     await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), { links }); 
-                    
-                    // 強制更新本地畫面 (解決不重整不顯示的問題)
                     if (!this.currentSubProject.links) this.currentSubProject.links = [];
                     this.currentSubProject.links.push(newLinkObj);
                 },
-
                 async addComment() { 
                     if (!this.newComment.trim()) return; 
                     const content = this.newComment;
@@ -1134,42 +1088,33 @@
                         });
                     } catch (e) { console.error("Comment Error", e); }
                 },
-
                 checkForMention() { this.showMentionList = this.newComment.endsWith('@'); },
                 selectMention(name) { 
                     this.newComment += name + ' '; 
                     this.showMentionList = false; 
                     this.$nextTick(() => { const input = this.$el.querySelector('input[placeholder*="留言"]'); if(input) input.focus(); });
                 },
-                
                 changeMonth(delta) { this.calendarMonth += delta; if(this.calendarMonth > 12) { this.calendarMonth = 1; this.calendarYear++; } else if(this.calendarMonth < 1) { this.calendarMonth = 12; this.calendarYear--; } },
-                
                 openEventModal() { 
                     if (this.currentSubProject.currentHandler !== this.currentUser.name) return alert("只有目前負責人 (球在手上) 才能新增工作日誌");
                     this.eventForm = { date: new Date().toISOString().split('T')[0], hours: 0, worker: this.currentUser.name, nextAssignee: this.currentSubProject.currentHandler || this.currentSubProject.assignee, description: '', matchedMilestoneId: '' }; 
                     this.showEventModal = true; 
                 },
-
                 async saveEvent() {
                     if (this.currentSubProject.currentHandler !== this.currentUser.name) return;
                     if (new Date(this.eventForm.date) < new Date(this.currentSubProject.startDate)) {
                         alert(`工作日誌日期 (${this.eventForm.date}) 不可早於子專案開始日 (${this.currentSubProject.startDate})`);
                         return;
                     }
-
-                    // --- 新增：不得早於前一個工作日誌日期 ---
                     if (this.currentSubProject.events && this.currentSubProject.events.length > 0) {
-                        // 取得現有日誌中日期最晚的那一筆（或最後一筆）
                         const lastEventDate = this.currentSubProject.events.reduce((latest, ev) => {
                             return new Date(ev.date) > new Date(latest) ? ev.date : latest;
                         }, this.currentSubProject.events[0].date);
-
                         if (new Date(this.eventForm.date) < new Date(lastEventDate)) {
                             alert(`工作日誌日期 (${this.eventForm.date}) 不得早於最後一筆記錄日期 (${lastEventDate})`);
                             return;
                         }
                     }
-
                     const newEvent = { id: 'ev'+Date.now(), ...this.eventForm, handoffTo: this.eventForm.nextAssignee !== this.currentUser.name ? this.eventForm.nextAssignee : null };
                     const nextHandler = this.eventForm.nextAssignee;
                     const isHandoff = nextHandler !== this.currentUser.name;
@@ -1185,32 +1130,26 @@
                         const sortedMilestones = [...this.currentSubProject.milestones].sort((a, b) => new Date(a.date) - new Date(b.date));
                         const lastMilestone = sortedMilestones[sortedMilestones.length - 1];
                         const ms = this.currentSubProject.milestones.find(m => m.id === this.eventForm.matchedMilestoneId);
-                        
                         if (ms) {
                             ms.isCompleted = true;
                             ms.completedDate = this.eventForm.date;
                             ms.diffDays = Math.floor((new Date(this.eventForm.date) - new Date(ms.date)) / 86400000);
-                            
                             if (ms.id === lastMilestone.id) {
                                 const today = new Date(this.eventForm.date);
                                 const deadline = new Date(this.currentSubProject.endDate);
                                 const finalDelay = Math.floor((today - deadline) / 86400000);
-
-                                    if (finalDelay > 0) {
-                                        delayDetected = true;
-                                        this.currentSubProject.events.pop();
-                                        this.currentSubProject.currentHandler = oldHandler;
-                                        ms.isCompleted = false; 
-                                        this.tempCompletionData = { finalDelay, newEvent, milestoneId: ms.id, nextHandler };
-                                        this.showEventModal = false;
-                                        this.modalMode = 'sub_delay_complete';
-                                        
-                                        // ★★★ [新增] 這一行：初始化表單，避免 undefined 錯誤 ★★★
-                                        this.delayForm = { reason: '人力不足', remark: '' }; 
-                                        
-                                        this.showDelayReasonModal = true;
-                                        return; 
-                                    } else {
+                                if (finalDelay > 0) {
+                                    delayDetected = true;
+                                    this.currentSubProject.events.pop();
+                                    this.currentSubProject.currentHandler = oldHandler;
+                                    ms.isCompleted = false; 
+                                    this.tempCompletionData = { finalDelay, newEvent, milestoneId: ms.id, nextHandler };
+                                    this.showEventModal = false;
+                                    this.modalMode = 'sub_delay_complete';
+                                    this.delayForm = { reason: '人力不足', remark: '' }; 
+                                    this.showDelayReasonModal = true;
+                                    return; 
+                                } else {
                                     isProjectCompleted = true;
                                     this.currentSubProject.status = 'completed'; 
                                     this.currentSubProject.finalDelayDays = 0;
@@ -1220,9 +1159,7 @@
                             }
                         }
                     }
-
                     this.showEventModal = false;
-
                     try {
                         const updates = { 
                             events: this.currentSubProject.events, 
@@ -1243,11 +1180,9 @@
                         console.error("Sync Failed", e);
                     }
                 },
-
                 async sendNotification(recipient, type, message, pid, sid) { await addDoc(collection(db, "notifications"), { recipient, type, message, projectId: pid, subProjectId: sid, read: false, time: new Date().toLocaleString(), sender: this.currentUser.name }); },
                 async handleNotificationClick(n) { const notifRef = doc(db, "notifications", n.id); await updateDoc(notifRef, { read: true }); const parent = this.indexedParentMap[n.projectId]; if (parent) { const subs = this.indexedSubsByParent[n.projectId] || []; const sub = subs.find(s => s.id === n.subProjectId); if (sub) this.selectSubProject(sub, parent); } this.showNotifications = false; },
                 async clearAllNotifications() { this.notifications.forEach(async n => { await deleteDoc(doc(db, "notifications", n.id)); }); this.notifications = []; },
-
                 addToHistory() { this.historyStack.push({ view: this.currentView, parentId: this.currentParentProject?.id, subId: this.currentSubProject?.id }); },
                 goBack() { 
                     const prev = this.historyStack.pop(); 
@@ -1264,105 +1199,81 @@
                 selectParentProject(proj) { this.addToHistory(); this.currentParentProject = proj; this.currentView = 'parent_detail'; this.detailTab = 'overview'; },
                 selectSubProject(sp, parent) { this.addToHistory(); this.currentParentProject = parent; this.currentSubProject = sp; this.currentView = 'sub_project_detail'; this.setupForm = { startDate: new Date().toISOString().split('T')[0], endDate: '', milestones: [] }; this.detailTab = 'events'; },
                 openCalendarSideEvent(ev) { this.calendarSideEvent = ev; },
-
                 openParentAbortModal() { this.modalMode = 'parent_abort'; this.delayForm = { reason: '策略調整', remark: '' }; this.showDelayReasonModal = true; },
                 openSubAbortModal() { this.modalMode = 'sub_abort'; this.delayForm = { reason: '策略調整', remark: '' }; this.showDelayReasonModal = true; },
                 tryCompleteSubProject() { const delayDays = this.getSubProjectDelayDays(this.currentSubProject); const hasUnfinishedMilestones = (this.currentSubProject.milestones || []).some(m => !m.isCompleted); if (delayDays > 0 || hasUnfinishedMilestones) { this.modalMode = 'sub_complete'; this.delayForm = { reason: '人力不足', remark: '' }; this.showDelayReasonModal = true; } else { if(confirm("確認結案？")) this.finalizeSubProject(); } },
-                
-/* --- 修改 methods 中的 submitDelayModal --- */
-async submitDelayModal() {
-    this.isSubmitting = true;
-    try {
-        // 1. 處理：系統自動偵測的延遲結案 (來自 saveEvent)
-        if (this.modalMode === 'sub_delay_complete') {
-            const data = this.tempCompletionData;
-            if (!data) throw new Error("暫存資料遺失，請重新操作");
-
-            const ms = this.currentSubProject.milestones.find(m => m.id === data.milestoneId);
-            
-            // 更新本地資料結構
-            if(!this.currentSubProject.events) this.currentSubProject.events = [];
-            this.currentSubProject.events.push(data.newEvent);
-            this.currentSubProject.currentHandler = data.nextHandler;
-            
-            if (ms) {
-                ms.isCompleted = true;
-                ms.completedDate = data.newEvent.date;
-                ms.diffDays = Math.floor((new Date(data.newEvent.date) - new Date(ms.date)) / 86400000);
-            }
-            
-            this.currentSubProject.status = 'completed';
-            this.currentSubProject.finalDelayDays = data.finalDelay;
-            this.currentSubProject.delayReason = this.delayForm.reason;
-            this.currentSubProject.delayRemark = this.delayForm.remark;
-            this.currentSubProject.completedDate = data.newEvent.date;
-
-            // 寫入資料庫
-            await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), {
-                events: this.currentSubProject.events,
-                currentHandler: data.nextHandler,
-                milestones: this.currentSubProject.milestones,
-                status: 'completed',
-                finalDelayDays: data.finalDelay,
-                delayReason: this.delayForm.reason,
-                delayRemark: this.delayForm.remark || '',  // 加上 || '' 確保永遠是字串
-                completedDate: data.newEvent.date
-            });
-        } 
-        
-        // 2. 處理：母專案中止
-        else if (this.modalMode === 'parent_abort') {
-            if(confirm("確定中止此母專案？")) {
-                await updateDoc(doc(db, "projects", this.currentParentProject.id), { 
-                    status: 'aborted', 
-                    delayReason: this.delayForm.reason, 
-                    delayRemark: this.delayForm.remark || '',  // 加上 || '' 確保永遠是字串 
-                });
-                this.currentView = 'dashboard';
-            }
-        } 
-        
-        // 3. 處理：子專案中止
-        else if (this.modalMode === 'sub_abort') {
-            await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), { 
-                status: 'aborted', 
-                delayReason: this.delayForm.reason, 
-                delayRemark: this.delayForm.remark || '',  // 加上 || '' 確保永遠是字串 
-            });
-            this.currentSubProject.status = 'aborted'; // 手動更新本地狀態
-        } 
-        
-        // 4. 處理：手動點擊結案按鈕 (Manual Complete)
-        else {
-            const currentDelay = this.getSubProjectDelayDays(this.currentSubProject);
-            const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
-            
-            await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), { 
-                delayReason: this.delayForm.reason, 
-                delayRemark: this.delayForm.remark || '',  // 加上 || '' 確保永遠是字串 
-                finalDelayDays: currentDelay > 0 ? currentDelay : 0, 
-                status: 'completed',
-                completedDate: today 
-            });
-            
-            // 手動更新本地狀態
-            this.currentSubProject.status = 'completed';
-            this.currentSubProject.finalDelayDays = currentDelay > 0 ? currentDelay : 0;
-        }
-
-        // --- 成功後執行 ---
-        alert("資料已儲存");
-        this.showDelayReasonModal = false; // 確保關閉視窗
-        this.delayForm = { reason: '人力不足', remark: '' }; // 重置表單
-
-    } catch(e) {
-        console.error(e);
-        alert("儲存失敗，請檢查網路或重試：" + e.message);
-    } finally {
-        this.isSubmitting = false;
-    }
-},
-                
+                async submitDelayModal() {
+                    this.isSubmitting = true;
+                    try {
+                        if (this.modalMode === 'sub_delay_complete') {
+                            const data = this.tempCompletionData;
+                            if (!data) throw new Error("暫存資料遺失，請重新操作");
+                            const ms = this.currentSubProject.milestones.find(m => m.id === data.milestoneId);
+                            if(!this.currentSubProject.events) this.currentSubProject.events = [];
+                            this.currentSubProject.events.push(data.newEvent);
+                            this.currentSubProject.currentHandler = data.nextHandler;
+                            if (ms) {
+                                ms.isCompleted = true;
+                                ms.completedDate = data.newEvent.date;
+                                ms.diffDays = Math.floor((new Date(data.newEvent.date) - new Date(ms.date)) / 86400000);
+                            }
+                            this.currentSubProject.status = 'completed';
+                            this.currentSubProject.finalDelayDays = data.finalDelay;
+                            this.currentSubProject.delayReason = this.delayForm.reason;
+                            this.currentSubProject.delayRemark = this.delayForm.remark;
+                            this.currentSubProject.completedDate = data.newEvent.date;
+                            await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), {
+                                events: this.currentSubProject.events,
+                                currentHandler: data.nextHandler,
+                                milestones: this.currentSubProject.milestones,
+                                status: 'completed',
+                                finalDelayDays: data.finalDelay,
+                                delayReason: this.delayForm.reason,
+                                delayRemark: this.delayForm.remark || '', 
+                                completedDate: data.newEvent.date
+                            });
+                        } 
+                        else if (this.modalMode === 'parent_abort') {
+                            if(confirm("確定中止此母專案？")) {
+                                await updateDoc(doc(db, "projects", this.currentParentProject.id), { 
+                                    status: 'aborted', 
+                                    delayReason: this.delayForm.reason, 
+                                    delayRemark: this.delayForm.remark || '',  
+                                });
+                                this.currentView = 'dashboard';
+                            }
+                        } 
+                        else if (this.modalMode === 'sub_abort') {
+                            await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), { 
+                                status: 'aborted', 
+                                delayReason: this.delayForm.reason, 
+                                delayRemark: this.delayForm.remark || '',  
+                            });
+                            this.currentSubProject.status = 'aborted'; 
+                        } 
+                        else {
+                            const currentDelay = this.getSubProjectDelayDays(this.currentSubProject);
+                            const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
+                            await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), { 
+                                delayReason: this.delayForm.reason, 
+                                delayRemark: this.delayForm.remark || '', 
+                                finalDelayDays: currentDelay > 0 ? currentDelay : 0, 
+                                status: 'completed',
+                                completedDate: today 
+                            });
+                            this.currentSubProject.status = 'completed';
+                            this.currentSubProject.finalDelayDays = currentDelay > 0 ? currentDelay : 0;
+                        }
+                        alert("資料已儲存");
+                        this.showDelayReasonModal = false; 
+                        this.delayForm = { reason: '人力不足', remark: '' }; 
+                    } catch(e) {
+                        console.error(e);
+                        alert("儲存失敗，請檢查網路或重試：" + e.message);
+                    } finally {
+                        this.isSubmitting = false;
+                    }
+                },
                 async finalizeSubProject() { 
                     this.isSubmitting = true;
                     try {
@@ -1371,11 +1282,7 @@ async submitDelayModal() {
                     } finally { this.isSubmitting = false; }
                 },
                 async completeParentProject(proj) { if(confirm('全案歸檔？')) await updateDoc(doc(db, "projects", proj.id), { status: 'completed' }); this.currentView = 'dashboard'; },
-                
                 exportHistoryReport() { const rows = [ ['品牌', '母專案', '子專案', '負責人', '結案日期', '總工時', '最終狀態', '延遲天數', '延遲原因'], ...this.scopedStats.archivedList.map(i => [ i.brand.name, i.parent.title, i.branch.title, i.branch.assignee, i.branch.endDate, i.branch.actHours || 0, i.branch.status, i.branch.finalDelayDays || 0, i.branch.delayReason || '' ]) ]; let csvContent = "data:text/csv;charset=utf-8,\uFEFF" + rows.map(e => e.join(",")).join("\n"); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", `mkgt_history_report.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); },
-                openMemberDetail(m) { this.currentMemberDetail = m; this.recalcMemberDetail(); this.showMemberDetailModal = true; },
-                recalcMemberDetail() { const m = this.currentMemberDetail; let activeCount = 0, holdDaysSum = 0, activeTasks = [], overallCount = 0, overallDelay = 0, overallDelayDays = 0, overallReasons = {}, ownedList = []; this.allSubProjects.forEach(item => { const sp = item.branch; if(sp.currentHandler === m.name && sp.status === 'in_progress') { activeCount++; const hd = this.getDaysHeld(sp.lastHandoffDate); holdDaysSum += hd; activeTasks.push({ parent: item.parent, sub: sp, holdDays: hd }); } if(sp.assignee === m.name) { if (this.memberDetailYear === 'all' || (sp.endDate && sp.endDate.startsWith(this.memberDetailYear))) { overallCount++; const d = sp.finalDelayDays !== undefined ? sp.finalDelayDays : this.getSubProjectDelayDays(sp); if(d > 0 && sp.status !== 'aborted') { overallDelay++; overallDelayDays += d; } if((sp.status === 'completed' || sp.status === 'aborted') && sp.delayReason) overallReasons[sp.delayReason] = (overallReasons[sp.delayReason] || 0) + 1; ownedList.push({ parent: item.parent, sub: sp }); } } }); this.memberDetailData = { active: { count: activeCount, avgHoldDays: activeCount === 0 ? 0 : Math.round(holdDaysSum / activeCount), tasks: activeTasks.sort((a,b) => b.holdDays - a.holdDays) }, overall: { total: overallCount, delayRate: overallCount === 0 ? 0 : Math.round((overallDelay / overallCount) * 100), totalDelayDays: overallDelayDays, reasons: Object.entries(overallReasons).map(([k,v]) => ({name: k, count: v, percent: Math.round(v/overallCount*100) || 0})).sort((a,b) => b.count - a.count), projects: ownedList.sort((a,b) => new Date(b.sub.endDate) - new Date(a.sub.endDate)) } }; },
-
                 toggleExpand(p) { p.expanded = !p.expanded; },
                 calcSubProjectHours(sp) { return (sp.events || []).reduce((sum, ev) => sum + Number(ev.hours || 0), 0); },
                 getMilestoneName(mid) { return this.currentSubProject?.milestones?.find(m => m.id === mid)?.title || 'Unknown'; },
@@ -1390,27 +1297,21 @@ async submitDelayModal() {
                     if (target < today && sp.status !== 'aborted') return Math.floor((today - target) / 86400000); 
                     return 0; 
                 },
-                
                 getProjectHealth(sp) {
                     if (sp.status === 'completed') {
                         if (sp.finalDelayDays > 0) return { type: 'delay', days: sp.finalDelayDays };
                         return { type: 'normal', days: 0 };
                     }
                     if (sp.status === 'aborted') return { type: 'aborted', days: 0 };
-
                     const today = new Date(); today.setHours(0,0,0,0);
                     if (!sp.endDate) return { type: 'normal', days: 0 };
-                    
                     const deadline = new Date(sp.endDate); deadline.setHours(0,0,0,0);
-                    
                     if (deadline < today) {
                         return { type: 'delay', days: Math.floor((today - deadline) / 86400000) };
                     }
-
                     if (sp.milestones && sp.milestones.length > 0) {
                         const sorted = [...sp.milestones].sort((a,b) => new Date(a.date) - new Date(b.date));
                         const uncompleted = sorted.filter(m => !m.isCompleted);
-                        
                         if (uncompleted.length > 0) {
                             const nextMs = uncompleted[0];
                             if (nextMs.id !== sorted[sorted.length-1].id) {
@@ -1423,7 +1324,6 @@ async submitDelayModal() {
                     }
                     return { type: 'normal', days: Math.floor((deadline - today) / 86400000) };
                 },
-
                 statusBadge(s) { if(s==='completed') return 'bg-emerald-100 text-emerald-700'; if(s==='in_progress') return 'bg-indigo-100 text-indigo-700'; if(s==='aborted') return 'bg-slate-200 text-slate-600'; return 'bg-yellow-100 text-yellow-700'; },
                 getDeadlineStatus(dateStr) { if (!dateStr) return { status: 'normal', label: '未定', days: 0 }; const today = new Date(); today.setHours(0,0,0,0); const target = new Date(dateStr); target.setHours(0,0,0,0); const diffTime = target - today; const diffDays = Math.floor(diffTime / 86400000); if (diffDays < 0) return { status: 'overdue', label: `延遲 ${Math.abs(diffDays)} 天`, days: Math.abs(diffDays) }; if (diffDays <= 7) return { status: 'warning', label: `剩 ${diffDays} 天`, days: diffDays }; return { status: 'normal', label: `剩 ${diffDays} 天`, days: diffDays }; },
                 getDateStyle(dateStr) { const s = this.getDeadlineStatus(dateStr); if(s.status === 'overdue') return 'text-red-600 font-bold'; if(s.status === 'warning') return 'text-yellow-600 font-bold'; return 'text-slate-500'; },
@@ -1432,5 +1332,6 @@ async submitDelayModal() {
             }
         }).mount('#app');
     </script>
+
 </body>
 </html>
