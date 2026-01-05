@@ -119,7 +119,7 @@
 
         <div v-if="!userParams" class="fixed inset-0 z-[9999] flex items-center justify-center login-bg">
             <div class="bg-white/95 backdrop-blur-sm p-10 rounded-2xl shadow-2xl w-[400px] fade-in">
-                <div class="text-center mb-8"><h1 class="text-2xl font-bold text-slate-800">上洋行銷部 戰情室</h1><p class="text-slate-500 text-sm mt-2">v1.1</p></div>
+                <div class="text-center mb-8"><h1 class="text-2xl font-bold text-slate-800">上洋行銷部 戰情室</h1><p class="text-slate-500 text-sm mt-2">v1.2</p></div>
                 <div v-if="authError" class="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-6 flex items-center"><i class="fas fa-exclamation-circle mr-2"></i> {{ authError }}</div>
                 <div class="space-y-5">
                     <input v-model="authForm.email" type="email" class="w-full border rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Email">
@@ -436,85 +436,294 @@
                         </div>
                     </div>
 
-                    <div v-if="currentView === 'parent_detail'" class="flex-1 flex flex-col bg-white overflow-hidden w-full fade-in">
-                        
-                        <div class="bg-white border-b border-slate-200 px-8 py-6 shadow-sm z-10 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                            <div class="flex-1">
-                                <div class="flex items-center text-xs text-slate-500 mb-2 hover:text-indigo-600 cursor-pointer transition w-fit group" @click="goBack">
-                                    <i class="fas fa-arrow-left mr-2 group-hover:-translate-x-1 transition-transform"></i> 返回上一頁
-                                </div>
-                                <h2 class="text-3xl font-bold text-slate-900 tracking-tight leading-tight">
-                                    {{ currentParentProject.title }}
-                                    <span v-if="currentParentProject.status==='aborted'" class="ml-2 bg-slate-200 text-slate-600 text-sm px-2 py-0.5 rounded align-middle font-medium">已中止</span>
-                                    <span v-if="currentParentProject.status==='completed'" class="ml-2 bg-emerald-100 text-emerald-700 text-sm px-2 py-0.5 rounded align-middle font-medium">已歸檔</span>
-                                </h2>
-                                <div class="mt-2 flex items-center gap-4 text-sm text-slate-500">
-                                    <span class="bg-slate-100 px-2 py-0.5 rounded font-mono text-xs border border-slate-200">ID: {{ currentParentProject.id.substring(0,8) }}</span>
-                                    <span class="flex items-center"><i class="far fa-calendar-alt mr-1.5"></i> {{ currentParentProject.startDate }} ~ {{ currentParentProject.endDate }}</span>
-                                    <span class="flex items-center"><i class="far fa-user-circle mr-1.5"></i> {{ currentParentProject.owner }}</span>
-                                </div>
-                            </div>
-                            <div class="flex flex-wrap gap-2 items-start justify-end">
-                                <button v-if="(currentUser.role==='director' || currentUser.name===currentParentProject.owner) && currentParentProject.status==='active'" @click="openParentAbortModal" class="bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-300 px-4 py-2 rounded-lg font-bold text-sm transition flex items-center"><i class="fas fa-ban mr-2"></i> 中止全案</button>
-                                <button v-if="(currentUser.role==='director' || currentUser.name===currentParentProject.owner) && currentParentProject.status==='active'" @click="completeParentProject(currentParentProject)" class="bg-white hover:bg-emerald-50 text-emerald-600 border border-emerald-200 px-4 py-2 rounded-lg font-bold text-sm transition flex items-center shadow-sm"><i class="fas fa-check-circle mr-2"></i> 全案歸檔</button>
-                                <button v-if="currentParentProject.status==='active'" @click="openSubProjectModal(currentParentProject.id)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md transition flex items-center"><i class="fas fa-plus mr-2"></i> 開立子專案</button>
-                            </div>
-                        </div>
+<div v-if="currentView === 'parent_detail'" class="flex-1 flex flex-col bg-white overflow-hidden w-full fade-in">
+<div class="bg-white border-b border-slate-200 px-8 py-6 shadow-sm z-10 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div class="flex-1">
+            <div class="flex items-center text-xs text-slate-500 mb-2 hover:text-indigo-600 cursor-pointer transition w-fit group" @click="goBack">
+                <i class="fas fa-arrow-left mr-2 group-hover:-translate-x-1 transition-transform"></i> 返回上一頁
+            </div>
+            <h2 class="text-3xl font-bold text-slate-900 tracking-tight leading-tight flex items-center group">
+                {{ currentParentProject.title }}
+                <button @click="editParentTitle" class="ml-3 text-sm text-slate-300 hover:text-indigo-600 transition" title="修改名稱">
+                    <i class="fas fa-pen"></i>
+                </button>
+                <span v-if="currentParentProject.status==='aborted'" class="ml-2 bg-slate-200 text-slate-600 text-sm px-2 py-0.5 rounded align-middle font-medium">已中止</span>
+                <span v-if="currentParentProject.status==='completed'" class="ml-2 bg-emerald-100 text-emerald-700 text-sm px-2 py-0.5 rounded align-middle font-medium">已歸檔</span>
+            </h2>
+            <div class="mt-2 flex items-center gap-4 text-sm text-slate-500">
+                <span class="bg-slate-100 px-2 py-0.5 rounded font-mono text-xs border border-slate-200">ID: {{ currentParentProject.id.substring(0,8) }}</span>
+                <span class="flex items-center"><i class="far fa-calendar-alt mr-1.5"></i> {{ currentParentProject.startDate }} ~ {{ currentParentProject.endDate }}</span>
+                <span class="flex items-center"><i class="far fa-user-circle mr-1.5"></i> {{ currentParentProject.owner }}</span>
+            </div>
+        </div>
+        <div class="flex flex-wrap gap-2 items-start justify-end">
+            <button v-if="(currentUser.role==='director' || currentUser.name===currentParentProject.owner) && currentParentProject.status==='active'" @click="openParentAbortModal" class="bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-300 px-4 py-2 rounded-lg font-bold text-sm transition flex items-center"><i class="fas fa-ban mr-2"></i> 中止全案</button>
+            <button v-if="(currentUser.role==='director' || currentUser.name===currentParentProject.owner) && currentParentProject.status==='active'" @click="completeParentProject(currentParentProject)" class="bg-white hover:bg-emerald-50 text-emerald-600 border border-emerald-200 px-4 py-2 rounded-lg font-bold text-sm transition flex items-center shadow-sm"><i class="fas fa-check-circle mr-2"></i> 全案歸檔</button>
+            
+            <button type="button" v-if="currentParentProject.status==='active'" @click.stop="openBranchModal(currentParentProject.id)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md transition flex items-center">
+                <i class="fas fa-plus mr-2"></i> 開立子專案
+            </button>
+        </div>
+    </div>
+    <div class="flex mt-0 bg-white border-b border-slate-200 px-8">
+        <button @click="detailTab = 'overview'" :class="['px-4 py-3 text-sm font-bold border-b-2 transition -mb-[2px]', detailTab==='overview'?'border-indigo-600 text-indigo-600':'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300']">專案總覽</button>
+        <button @click="detailTab = 'gantt'" :class="['px-4 py-3 text-sm font-bold border-b-2 transition -mb-[2px]', detailTab==='gantt'?'border-indigo-600 text-indigo-600':'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300']">甘特圖 (Gantt)</button>
+    </div>
 
-                        <div class="flex mt-0 bg-white border-b border-slate-200 px-8">
-                            <button @click="detailTab = 'overview'" :class="['px-4 py-3 text-sm font-bold border-b-2 transition -mb-[2px]', detailTab==='overview'?'border-indigo-600 text-indigo-600':'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300']">專案總覽</button>
-                            <button @click="detailTab = 'gantt'" :class="['px-4 py-3 text-sm font-bold border-b-2 transition -mb-[2px]', detailTab==='gantt'?'border-indigo-600 text-indigo-600':'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300']">甘特圖 (Gantt)</button>
-                        </div>
-                    
-                        <div class="flex-1 overflow-y-auto p-8 bg-slate-50/50 w-full">
-                            <div v-if="detailTab === 'overview'">
-                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 w-full"><div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200"><span class="text-xs font-bold text-slate-400">總實際工時</span><div class="mt-2 text-3xl font-bold text-blue-600">{{ currentProjectStats.act || 0 }} <span class="text-sm font-medium text-slate-400">hours</span></div></div><div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200"><span class="text-xs font-bold text-slate-400">總進度</span><div class="mt-2 text-3xl font-bold text-indigo-600">{{ currentProjectStats.progress || 0 }}%</div><div class="w-full bg-slate-100 rounded-full h-1.5 mt-2"><div class="bg-indigo-500 h-1.5 rounded-full" :style="{width: (currentProjectStats.progress||0)+'%'}"></div></div></div><div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200"><span class="text-xs font-bold text-slate-400">剩餘天數 / 延誤</span><div class="mt-2 text-3xl font-bold" :class="getDeadlineStatus(currentParentProject.endDate).status==='overdue'?'text-red-600':'text-slate-800'">{{ getDeadlineStatus(currentParentProject.endDate).label }}</div></div><div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200"><span class="text-xs font-bold text-slate-400">完成/總數</span><div class="mt-2 text-3xl font-bold text-slate-800">{{ currentProjectStats.completed || 0 }} <span class="text-slate-300">/</span> {{ currentProjectStats.total || 0 }}</div></div></div>
-                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
-                                    <div v-if="getSortedSubs(currentParentProject.id).length === 0" class="text-center w-full col-span-full py-10 text-slate-400 italic border-2 border-dashed border-slate-200 rounded-lg">尚無子專案</div>
-                                    <div v-for="branch in getSortedSubs(currentParentProject.id)" :key="branch.id" @click="selectSubProject(branch, currentParentProject)" class="bg-white rounded-xl p-5 cursor-pointer shadow-sm hover:shadow-md transition border border-slate-200 hover:-translate-y-1 relative" :class="branch.status==='aborted'?'opacity-60':(getProjectHealth(branch).type==='delay'?'border-red-300 ring-1 ring-red-100':'')"><div class="flex justify-between items-start mb-4"><div><h3 class="font-bold text-lg text-slate-800 group-hover:text-indigo-600">{{ branch.title }}</h3><div class="text-xs text-slate-500 mt-1 flex gap-2"><span>👤 負責: {{ branch.assignee }}</span><span>⚡ 執行: {{ branch.currentHandler }}</span></div></div><span :class="['px-2 py-1 rounded text-[10px] font-bold uppercase h-fit', statusBadge(branch.status)]">{{ statusMap[branch.status] }}</span></div><div class="mt-4 pt-4 border-t border-slate-100"><div class="flex justify-between text-xs text-slate-500 mb-2"><span :class="getDateStyle(branch.endDate)">{{ branch.endDate }} <span v-if="getSubProjectDelayDays(branch) > 0" class="ml-1 bg-red-100 text-red-600 px-1 rounded font-bold">延 {{ getSubProjectDelayDays(branch) }} 天</span></span><span class="font-bold text-blue-600">{{ calcSubProjectHours(branch) }}h</span></div><div class="w-full bg-slate-100 rounded-full h-1.5"><div class="bg-emerald-500 h-1.5 rounded-full" :style="{width: getBranchProgress(branch).percent+'%'}"></div></div></div><div v-if="branch.delayReason" class="mt-2 bg-red-50 p-2 rounded text-[10px] text-red-600 font-bold border border-red-100"><i class="fas fa-exclamation-circle mr-1"></i> 原因: {{ branch.delayReason }}</div><div v-if="branch.status==='aborted'" class="absolute top-0 right-0 bg-slate-600 text-white text-[10px] px-2 py-1 rounded-bl-lg font-bold shadow-sm">中止</div><div v-else-if="getProjectHealth(branch).type === 'delay'" class="absolute top-0 right-0 bg-red-500 text-white text-[10px] px-2 py-1 rounded-bl-lg font-bold shadow-sm">延遲 {{ getProjectHealth(branch).days }} 天</div><div v-else-if="getProjectHealth(branch).type === 'lag'" class="absolute top-0 right-0 bg-orange-400 text-white text-[10px] px-2 py-1 rounded-bl-lg font-bold shadow-sm">落後 {{ getProjectHealth(branch).days }} 天</div></div>
-                                </div>
-                            </div>
-                            
-                            <div v-if="detailTab === 'gantt'" class="bg-white p-0 rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[600px]">
-                                <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                                    <h3 class="font-bold text-slate-700">專案排程總覽 (可左右拖曳)</h3>
-                                    <div class="flex items-center gap-2">
-                                        <button @click="changeGanttZoom(-10)" class="w-8 h-8 rounded bg-white border border-slate-300 hover:bg-slate-50 flex items-center justify-center text-slate-500"><i class="fas fa-search-minus"></i></button>
-                                        <button @click="changeGanttZoom(10)" class="w-8 h-8 rounded bg-white border border-slate-300 hover:bg-slate-50 flex items-center justify-center text-slate-500"><i class="fas fa-search-plus"></i></button>
-                                    </div>
-                                </div>
-                                <div class="flex-1 overflow-hidden relative">
-                                    <div ref="ganttContainer" class="gantt-scroll-container h-full w-full" @mousedown="startDrag" @mousemove="doDrag" @mouseup="stopDrag" @mouseleave="stopDrag">
-                                        <div class="gantt-header-row" :style="{ width: (220 + getGanttDays(currentParentProject).length * ganttCellWidth) + 'px' }">
-                                            <div class="gantt-label-col">子專案名稱</div>
-                                            <div v-for="day in getGanttDays(currentParentProject)" :key="day.iso" :style="{ width: ganttCellWidth + 'px' }" :class="['gantt-day-cell', day.isWeekend ? 'weekend' : '']">{{ day.label }}</div>
-                                        </div>
-                                        <div v-for="sp in getSubsForParent(currentParentProject.id)" :key="sp.id" class="gantt-row" :style="{ width: (220 + getGanttDays(currentParentProject).length * ganttCellWidth) + 'px' }">
-                                            <div class="gantt-label-col truncate" :title="sp.title">{{ sp.title }}</div>
-                                            <div class="gantt-timeline-area flex-1">
-                                                 <div v-for="day in getGanttDays(currentParentProject)" :key="'bg'+day.iso" :style="{ width: ganttCellWidth + 'px' }" :class="['gantt-day-cell', day.isWeekend ? 'weekend' : '']"></div>
-                                                 <div :class="['gantt-bar', getProjectHealth(sp).type==='delay'?'bg-red-500':(sp.status==='completed'?'bg-emerald-500':'bg-indigo-500')]" :style="getDynamicGanttBarStyles(sp, currentParentProject)">{{ sp.title }}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+    <div class="flex-1 overflow-y-auto p-8 bg-slate-50/50 w-full">
+        <div v-if="detailTab === 'overview'">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 w-full"><div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200"><span class="text-xs font-bold text-slate-400">總實際工時</span><div class="mt-2 text-3xl font-bold text-blue-600">{{ currentProjectStats.act || 0 }} <span class="text-sm font-medium text-slate-400">hours</span></div></div><div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200"><span class="text-xs font-bold text-slate-400">總進度</span><div class="mt-2 text-3xl font-bold text-indigo-600">{{ currentProjectStats.progress || 0 }}%</div><div class="w-full bg-slate-100 rounded-full h-1.5 mt-2"><div class="bg-indigo-500 h-1.5 rounded-full" :style="{width: (currentProjectStats.progress||0)+'%'}"></div></div></div><div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200"><span class="text-xs font-bold text-slate-400">剩餘天數 / 延誤</span><div class="mt-2 text-3xl font-bold" :class="getDeadlineStatus(currentParentProject.endDate).status==='overdue'?'text-red-600':'text-slate-800'">{{ getDeadlineStatus(currentParentProject.endDate).label }}</div></div><div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200"><span class="text-xs font-bold text-slate-400">完成/總數</span><div class="mt-2 text-3xl font-bold text-slate-800">{{ currentProjectStats.completed || 0 }} <span class="text-slate-300">/</span> {{ currentProjectStats.total || 0 }}</div></div></div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full">
+                <div v-if="getSortedSubs(currentParentProject.id).length === 0" class="text-center w-full col-span-full py-10 text-slate-400 italic border-2 border-dashed border-slate-200 rounded-lg">尚無子專案</div>
+                <div v-for="branch in getSortedSubs(currentParentProject.id)" :key="branch.id" @click="selectSubProject(branch, currentParentProject)" class="bg-white rounded-xl p-5 cursor-pointer shadow-sm hover:shadow-md transition border border-slate-200 hover:-translate-y-1 relative" :class="branch.status==='aborted'?'opacity-60':(getProjectHealth(branch).type==='delay'?'border-red-300 ring-1 ring-red-100':'')"><div class="flex justify-between items-start mb-4"><div><h3 class="font-bold text-lg text-slate-800 group-hover:text-indigo-600">{{ branch.title }}</h3><div class="text-xs text-slate-500 mt-1 flex gap-2"><span>👤 負責: {{ branch.assignee }}</span><span>⚡ 執行: {{ branch.currentHandler }}</span></div></div><span :class="['px-2 py-1 rounded text-[10px] font-bold uppercase h-fit', statusBadge(branch.status)]">{{ statusMap[branch.status] }}</span></div><div class="mt-4 pt-4 border-t border-slate-100"><div class="flex justify-between text-xs text-slate-500 mb-2"><span :class="getDateStyle(branch.endDate)">{{ branch.endDate }} <span v-if="getSubProjectDelayDays(branch) > 0" class="ml-1 bg-red-100 text-red-600 px-1 rounded font-bold">延 {{ getSubProjectDelayDays(branch) }} 天</span></span><span class="font-bold text-blue-600">{{ calcSubProjectHours(branch) }}h</span></div><div class="w-full bg-slate-100 rounded-full h-1.5"><div class="bg-emerald-500 h-1.5 rounded-full" :style="{width: getBranchProgress(branch).percent+'%'}"></div></div></div><div v-if="branch.delayReason" class="mt-2 bg-red-50 p-2 rounded text-[10px] text-red-600 font-bold border border-red-100"><i class="fas fa-exclamation-circle mr-1"></i> 原因: {{ branch.delayReason }}</div><div v-if="branch.status==='aborted'" class="absolute top-0 right-0 bg-slate-600 text-white text-[10px] px-2 py-1 rounded-bl-lg font-bold shadow-sm">中止</div><div v-else-if="getProjectHealth(branch).type === 'delay'" class="absolute top-0 right-0 bg-red-500 text-white text-[10px] px-2 py-1 rounded-bl-lg font-bold shadow-sm">延遲 {{ getProjectHealth(branch).days }} 天</div><div v-else-if="getProjectHealth(branch).type === 'lag'" class="absolute top-0 right-0 bg-orange-400 text-white text-[10px] px-2 py-1 rounded-bl-lg font-bold shadow-sm">落後 {{ getProjectHealth(branch).days }} 天</div></div>
+            </div>
+        </div>
+        
+        <div v-if="detailTab === 'gantt'" class="bg-white p-0 rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[600px]">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-700">專案排程總覽 (可左右拖曳)</h3>
+                <div class="flex items-center gap-2">
+                    <button @click="changeGanttZoom(-10)" class="w-8 h-8 rounded bg-white border border-slate-300 hover:bg-slate-50 flex items-center justify-center text-slate-500"><i class="fas fa-search-minus"></i></button>
+                    <button @click="changeGanttZoom(10)" class="w-8 h-8 rounded bg-white border border-slate-300 hover:bg-slate-50 flex items-center justify-center text-slate-500"><i class="fas fa-search-plus"></i></button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-hidden relative">
+                <div ref="ganttContainer" class="gantt-scroll-container h-full w-full" @mousedown="startDrag" @mousemove="doDrag" @mouseup="stopDrag" @mouseleave="stopDrag">
+                    <div class="gantt-header-row" :style="{ width: (220 + getGanttDays(currentParentProject).length * ganttCellWidth) + 'px' }">
+                        <div class="gantt-label-col">子專案名稱</div>
+                        <div v-for="day in getGanttDays(currentParentProject)" :key="day.iso" :style="{ width: ganttCellWidth + 'px' }" :class="['gantt-day-cell', day.isWeekend ? 'weekend' : '']">{{ day.label }}</div>
                     </div>
-                    
-                    <div v-if="currentView === 'sub_project_detail'" class="flex-1 flex flex-col h-full bg-white w-full fade-in"><div class="border-b border-slate-200 px-8 py-6 bg-white w-full shadow-sm z-10"><div class="flex items-center gap-2 mb-4 bg-slate-50 p-2 rounded-lg border border-slate-100" v-if="currentSubProject.links && currentSubProject.links.length > 0"><span class="text-[10px] font-bold text-slate-400 uppercase mr-2">資源連結:</span><a v-for="l in currentSubProject.links" :key="l.url" :href="l.url" target="_blank" class="flex items-center text-xs text-indigo-600 hover:text-indigo-800 bg-white px-2 py-1 rounded border border-indigo-100 hover:border-indigo-300 transition"><i class="fas fa-link mr-1"></i> {{ l.title }}</a></div><div class="flex items-center justify-between mb-3"><div class="flex items-center text-xs text-slate-500 hover:text-indigo-600 cursor-pointer transition w-fit" @click="goBack"><i class="fas fa-arrow-left mr-2"></i> 返回上一頁</div><div class="flex items-center gap-2"><span v-if="currentSubProject.status === 'setup'" class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-bold animate-pulse">規劃中 (Setup)</span><span v-if="currentSubProject.status === 'in_progress'" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">執行中</span><span v-if="currentSubProject.status === 'completed'" class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold">已結案</span><span v-if="currentSubProject.status === 'aborted'" class="bg-slate-600 text-white px-3 py-1 rounded-full text-xs font-bold">已中止</span><span v-if="getProjectHealth(currentSubProject).type === 'delay'" class="bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-bold border border-red-200"><i class="fas fa-clock mr-1"></i> 延誤 {{ getProjectHealth(currentSubProject).days }} 天</span></div></div><div class="flex justify-between items-start"><div><h2 class="text-2xl font-bold text-slate-800 mb-2 flex items-center">{{ currentSubProject.title }} <button v-if="canEditSubProject" @click="addResourceLink" class="ml-3 text-xs bg-slate-100 text-slate-500 w-6 h-6 rounded-full hover:bg-indigo-50 hover:text-indigo-600 transition" title="新增連結"><i class="fas fa-plus"></i></button></h2><div class="flex items-center space-x-6 text-sm text-slate-600"><div class="flex items-center bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200"><span class="text-xs font-bold text-slate-400 mr-2 uppercase">負責人</span><i class="fas fa-user-circle mr-1 text-slate-500"></i> <span class="font-bold text-slate-700">{{ currentSubProject.assignee }}</span></div><div class="flex items-center bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100"><span class="text-xs font-bold text-indigo-400 mr-2 uppercase">目前處理</span><i class="fas fa-hand-holding mr-1 text-indigo-500"></i> <span class="font-bold text-indigo-700">{{ currentSubProject.currentHandler || currentSubProject.assignee }}</span></div></div><div class="text-xs text-slate-400 mt-2">起迄: {{ currentSubProject.startDate || '未定' }} ~ {{ currentSubProject.endDate || '未定' }}</div></div><div class="text-right"><div class="text-3xl font-bold text-blue-600">{{ calcSubProjectHours(currentSubProject) }} <span class="text-sm text-slate-400 font-medium">hours</span></div><div class="flex gap-2 mt-2 justify-end" v-if="canEditSubProject && (currentSubProject.status === 'in_progress' || currentSubProject.status === 'setup')"><button v-if="currentSubProject.status === 'in_progress'" @click="openEditBranchModal" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded font-bold transition flex items-center"><i class="fas fa-cog mr-1"></i> 設定</button>
-                        <button v-if="currentSubProject.status === 'in_progress'" @click="openSubAbortModal" class="text-xs bg-slate-500 hover:bg-slate-600 text-white px-3 py-1.5 rounded transition">⛔ 中止專案</button>
-                      <!--  <button v-if="currentSubProject.status === 'in_progress'" @click="tryCompleteSubProject" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded transition">完成專案</button>
-                   -->
+                    <div v-for="sp in getSubsForParent(currentParentProject.id)" :key="sp.id" class="gantt-row" :style="{ width: (220 + getGanttDays(currentParentProject).length * ganttCellWidth) + 'px' }">
+                        <div class="gantt-label-col truncate" :title="sp.title">{{ sp.title }}</div>
+                        <div class="gantt-timeline-area flex-1">
+                                <div v-for="day in getGanttDays(currentParentProject)" :key="'bg'+day.iso" :style="{ width: ganttCellWidth + 'px' }" :class="['gantt-day-cell', day.isWeekend ? 'weekend' : '']"></div>
+                                <div :class="['gantt-bar', getProjectHealth(sp).type==='delay'?'bg-red-500':(sp.status==='completed'?'bg-emerald-500':'bg-indigo-500')]" :style="getDynamicGanttBarStyles(sp, currentParentProject)">{{ sp.title }}</div>
+                        </div>
                     </div>
                 </div>
-                <div v-if="currentSubProject.delayReason" class="mt-4 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg">
-                    <div class="flex">
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-exclamation-triangle text-red-500"></i>
-                        </div><div class="ml-3"><h3 class="text-sm font-bold text-red-800">延遲結案原因：{{ currentSubProject.delayReason }}</h3><div class="mt-1 text-sm text-red-700">{{ currentSubProject.delayRemark }}</div></div></div></div></div><div class="flex mt-6 space-x-1 border-b border-slate-200"><button @click="detailTab = 'events'" :class="['px-4 py-2 text-sm font-bold border-b-2 transition', detailTab==='events'?'border-indigo-600 text-indigo-600':'border-transparent text-slate-400 hover:text-slate-600']">工作日誌</button><button @click="detailTab = 'comments'" :class="['px-4 py-2 text-sm font-bold border-b-2 transition', detailTab==='comments'?'border-indigo-600 text-indigo-600':'border-transparent text-slate-400 hover:text-slate-600']">留言討論 ({{ currentSubProject.comments?.length || 0 }})</button></div></div><div class="flex-1 overflow-y-auto p-8 w-full bg-slate-50/50"><div class="w-full max-w-5xl mx-auto"><div v-if="currentSubProject.status === 'setup'"><template v-if="currentSubProject.assignee === currentUser.name"><div class="bg-white p-8 rounded-xl shadow-lg border border-indigo-100 mb-8"><h3 class="font-bold text-lg text-slate-800 mb-4 border-b pb-2">Step 1: 專案規劃與里程碑設定</h3><div class="grid grid-cols-2 gap-6 mb-6"><div><label class="block text-xs font-bold text-slate-500 mb-1">子專案開始日 (Default: Today)</label><input type="date" v-model="setupForm.startDate" class="w-full border rounded-lg px-3 py-2"></div><div><label class="block text-xs font-bold text-slate-500 mb-1">子專案結束日</label><input type="date" v-model="setupForm.endDate" class="w-full border rounded-lg px-3 py-2 disabled:bg-slate-50 disabled:text-slate-400 cursor-not-allowed" disabled></div></div><div class="mb-6"><div class="flex justify-between items-center mb-2"><label class="block text-xs font-bold text-slate-500">里程碑 (Milestones)</label><button @click="addSetupMilestone" class="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded">+ 新增節點</button></div><div v-for="(m, idx) in setupForm.milestones" :key="idx" class="flex gap-2 mb-2"><input type="date" v-model="m.date" class="border rounded px-2 py-1 text-sm"><input v-model="m.title" placeholder="節點標題" class="flex-1 border rounded px-2 py-1 text-sm"><button @click="setupForm.milestones.splice(idx,1)" class="text-red-400 hover:text-red-600"><i class="fas fa-times"></i></button></div></div><div class="text-right"><button @click="confirmSetup" :disabled="isSubmitting" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold shadow hover:bg-indigo-700 disabled:opacity-50">確認規劃並開案</button></div></div></template><div v-else class="text-center py-12 bg-white rounded-xl shadow-sm border border-slate-200"><i class="fas fa-user-lock text-4xl text-slate-300 mb-4"></i><h3 class="text-lg font-bold text-slate-600">等待負責人規劃</h3><p class="text-slate-400 text-xs mt-2">此專案需由 <span class="font-bold text-indigo-500">{{ currentSubProject.assignee }}</span> 設定里程碑後方可執行。</p></div></div><div v-else><div class="mb-8"><h3 class="font-bold text-slate-700 mb-4 text-sm uppercase tracking-wide">預定里程碑</h3><div class="relative pl-6 space-y-0"><div v-if="sortedMilestones.length===0" class="text-slate-400 text-sm italic">無設定里程碑</div><div v-for="(ms, index) in sortedMilestones" :key="ms.id" class="relative pl-10 pb-8 group" :class="{'last-node': index === sortedMilestones.length - 1}"><div class="node-line"></div><div class="absolute left-0 top-1 w-8 h-8 rounded-full border-4 shadow-sm flex items-center justify-center bg-white" :class="ms.isCompleted ? 'border-emerald-500 text-emerald-500' : (isMilestoneOverdue(ms) ? 'border-orange-400 text-orange-500' : 'border-slate-300 text-slate-300')"><i v-if="ms.isCompleted" class="fas fa-check text-xs"></i><i v-else-if="isMilestoneOverdue(ms)" class="fas fa-exclamation text-xs"></i><div v-else class="w-2 h-2 rounded-full bg-current"></div></div><div class="bg-white border rounded-lg p-4 shadow-sm flex justify-between items-center" :class="ms.isCompleted ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200'"><div><div class="font-bold text-slate-800" :class="ms.isCompleted?'line-through text-slate-400':''">{{ ms.title }}</div><div class="text-xs text-slate-500 mt-1 flex items-center"><i class="far fa-calendar-alt mr-1"></i> {{ ms.date }} <span v-if="ms.isCompleted" class="ml-2 text-emerald-600 font-bold">(完成於 {{ ms.completedDate }})</span><span v-else-if="isMilestoneOverdue(ms)" class="ml-2 text-orange-500 font-bold">已落後 {{ getDaysLate(ms.date) }} 天 (警示)</span></div></div><div v-if="ms.isCompleted"><span v-if="ms.diffDays < 0" class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded font-bold">提早 {{ Math.abs(ms.diffDays) }} 天</span><span v-else-if="ms.diffDays > 0" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">延遲 {{ ms.diffDays }} 天</span><span v-else class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">準時完成</span></div></div></div></div></div><div v-if="detailTab === 'events'" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"><div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center"><h3 class="font-bold text-slate-700">工作日誌與品配 (Events)</h3><button v-if="currentSubProject.status === 'in_progress' && canEditSubProject" @click="openEventModal" class="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded shadow flex items-center"><i class="fas fa-pen mr-2"></i> 新增工作日誌 / 交接</button></div><div class="p-0"><table class="w-full text-sm text-left"><thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b"><tr><th class="px-6 py-3">日期</th><th class="px-6 py-3">執行人員</th><th class="px-6 py-3">內容</th><th class="px-6 py-3 text-center">工時</th><th class="px-6 py-3">匹配節點</th></tr></thead><tbody class="divide-y divide-slate-100"><tr v-if="!currentSubProject.events || currentSubProject.events.length===0"><td colspan="5" class="px-6 py-8 text-center text-slate-400 italic">尚無工作記錄</td></tr><tr v-for="ev in (currentSubProject.events || [])" :key="ev.id"><td class="px-6 py-3 font-mono text-slate-600">{{ ev.date }}</td><td class="px-6 py-3"><div class="flex items-center gap-2"><div class="w-5 h-5 rounded bg-slate-200 flex items-center justify-center text-[10px]">{{ ev.worker.substring(0,1) }}</div>{{ ev.worker }}</div></td><td class="px-6 py-3 text-slate-700">{{ ev.description }}<div v-if="ev.handoffTo" class="mt-1 text-xs text-indigo-600 font-bold"><i class="fas fa-arrow-right mr-1"></i> 交接給：{{ ev.handoffTo }}</div></td><td class="px-6 py-3 text-center font-bold text-blue-600">{{ ev.hours }} h</td><td class="px-6 py-3"><span v-if="ev.matchedMilestoneId" class="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-700 border border-emerald-200"><i class="fas fa-link mr-1"></i> {{ getMilestoneName(ev.matchedMilestoneId) }}</span><span v-else class="text-slate-300 text-xs">-</span></td></tr></tbody></table></div></div><div v-if="detailTab === 'comments'" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-96"><div class="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50"><div v-if="!currentSubProject.comments || currentSubProject.comments.length===0" class="text-center text-slate-400 text-xs italic py-10">尚無留言，開始討論吧！</div><div v-for="c in currentSubProject.comments" :key="c.id" :class="['flex', c.user === currentUser.name ? 'justify-end' : 'justify-start']"><div :class="['max-w-[70%] rounded-lg p-3 text-sm shadow-sm relative', c.user === currentUser.name ? 'bg-indigo-600 text-white chat-right' : 'bg-white border border-slate-200 text-slate-700 chat-left']"><div class="text-[10px] opacity-70 mb-1 flex justify-between gap-4"><span>{{ c.user }}</span><span>{{ c.time }}</span></div>{{ c.content }}</div></div></div><div class="p-4 bg-white border-t border-slate-100 flex gap-2 relative"><input v-model="newComment" @keyup.enter="addComment" @input="checkForMention" type="text" class="flex-1 border rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="輸入留言... (@提及成員)"><div v-if="showMentionList" class="absolute bottom-16 left-4 bg-white shadow-xl rounded-lg border w-48 z-50 overflow-hidden"><div v-for="u in users" :key="u.id" @click="selectMention(u.name)" class="px-3 py-2 text-xs hover:bg-indigo-50 cursor-pointer font-bold text-slate-700">{{ u.name }}</div></div><button @click="addComment" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700"><i class="fas fa-paper-plane"></i></button></div></div></div></div></div>
-
             </div>
+        </div>
+    </div>
+</div>
+                    
+<div v-if="currentView === 'sub_project_detail'" class="flex-1 flex flex-col h-full bg-white w-full fade-in">
+    <div class="border-b border-slate-200 px-8 py-6 bg-white w-full shadow-sm z-10">
+        <div class="flex items-center gap-2 mb-4 bg-slate-50 p-2 rounded-lg border border-slate-100" v-if="currentSubProject.links && currentSubProject.links.length > 0">
+            <span class="text-[10px] font-bold text-slate-400 uppercase mr-2">資源連結:</span>
+            <a v-for="l in currentSubProject.links" :key="l.url" :href="l.url" target="_blank" class="flex items-center text-xs text-indigo-600 hover:text-indigo-800 bg-white px-2 py-1 rounded border border-indigo-100 hover:border-indigo-300 transition">
+                <i class="fas fa-link mr-1"></i> {{ l.title }}
+            </a>
+        </div>
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center text-xs text-slate-500 hover:text-indigo-600 cursor-pointer transition w-fit" @click="goBack">
+                <i class="fas fa-arrow-left mr-2"></i> 返回上一頁
+            </div>
+            <div class="flex items-center gap-2">
+                <span v-if="currentSubProject.status === 'setup'" class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-bold animate-pulse">規劃中 (Setup)</span>
+                <span v-if="currentSubProject.status === 'in_progress'" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold">執行中</span>
+                <span v-if="currentSubProject.status === 'completed'" class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold">已結案</span>
+                <span v-if="currentSubProject.status === 'aborted'" class="bg-slate-600 text-white px-3 py-1 rounded-full text-xs font-bold">已中止</span>
+                <span v-if="getProjectHealth(currentSubProject).type === 'delay'" class="bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-bold border border-red-200">
+                    <i class="fas fa-clock mr-1"></i> 延誤 {{ getProjectHealth(currentSubProject).days }} 天
+                </span>
+            </div>
+        </div>
+        <div class="flex justify-between items-start">
+            <div>
+                <h2 class="text-2xl font-bold text-slate-800 mb-2 flex items-center group">
+                    {{ currentSubProject.title }}
+                    <button v-if="canEditSubProject" @click="editSubProjectTitle" class="ml-2 text-xs text-slate-300 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition" title="修改專案名稱">
+                        <i class="fas fa-pen"></i>
+                    </button>
+                    <button v-if="canEditSubProject" @click="addResourceLink" class="ml-3 text-xs bg-slate-100 text-slate-500 w-6 h-6 rounded-full hover:bg-indigo-50 hover:text-indigo-600 transition" title="新增連結">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </h2>
+                <div class="flex items-center space-x-6 text-sm text-slate-600">
+                    <div class="flex items-center bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                        <span class="text-xs font-bold text-slate-400 mr-2 uppercase">負責人</span>
+                        <i class="fas fa-user-circle mr-1 text-slate-500"></i>
+                        <span class="font-bold text-slate-700">{{ currentSubProject.assignee }}</span>
+                    </div>
+                    <div class="flex items-center bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">
+                        <span class="text-xs font-bold text-indigo-400 mr-2 uppercase">目前處理</span>
+                        <i class="fas fa-hand-holding mr-1 text-indigo-500"></i>
+                        <span class="font-bold text-indigo-700">{{ currentSubProject.currentHandler || currentSubProject.assignee }}</span>
+                    </div>
+                </div>
+                <div class="text-xs text-slate-400 mt-2">起迄: {{ currentSubProject.startDate || '未定' }} ~ {{ currentSubProject.endDate || '未定' }}</div>
+            </div>
+            <div class="text-right">
+                <div class="text-3xl font-bold text-blue-600">{{ calcSubProjectHours(currentSubProject) }} <span class="text-sm text-slate-400 font-medium">hours</span></div>
+                <div class="flex gap-2 mt-2 justify-end" v-if="canEditSubProject && (currentSubProject.status === 'in_progress' || currentSubProject.status === 'setup')">
+                    <button v-if="currentSubProject.status === 'in_progress'" @click="openEditBranchModal" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded font-bold transition flex items-center">
+                        <i class="fas fa-cog mr-1"></i> 設定
+                    </button>
+                    <button v-if="currentSubProject.status === 'in_progress'" @click="openSubAbortModal" class="text-xs bg-slate-500 hover:bg-slate-600 text-white px-3 py-1.5 rounded transition">
+                        ⛔ 中止專案
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div v-if="currentSubProject.delayReason" class="mt-4 bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg">
+            <div class="flex">
+                <div class="flex-shrink-0"><i class="fas fa-exclamation-triangle text-red-500"></i></div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-bold text-red-800">延遲結案原因：{{ currentSubProject.delayReason }}</h3>
+                    <div class="mt-1 text-sm text-red-700">{{ currentSubProject.delayRemark }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="flex mt-6 space-x-1 border-b border-slate-200 px-8">
+        <button @click="detailTab = 'events'" :class="['px-4 py-2 text-sm font-bold border-b-2 transition', detailTab==='events'?'border-indigo-600 text-indigo-600':'border-transparent text-slate-400 hover:text-slate-600']">工作日誌</button>
+        <button @click="detailTab = 'comments'" :class="['px-4 py-2 text-sm font-bold border-b-2 transition', detailTab==='comments'?'border-indigo-600 text-indigo-600':'border-transparent text-slate-400 hover:text-slate-600']">留言討論 ({{ currentSubProject.comments?.length || 0 }})</button>
+    </div>
+    <div class="flex-1 overflow-y-auto p-8 w-full bg-slate-50/50">
+        <div class="w-full max-w-5xl mx-auto">
+            <div v-if="currentSubProject.status === 'setup'">
+                <template v-if="currentSubProject.assignee === currentUser.name">
+                    <div class="bg-white p-8 rounded-xl shadow-lg border border-indigo-100 mb-8">
+                        <h3 class="font-bold text-lg text-slate-800 mb-4 border-b pb-2">Step 1: 專案規劃與里程碑設定</h3>
+                        <div class="grid grid-cols-2 gap-6 mb-6">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">子專案開始日 (Default: Today)</label>
+                                <input type="date" v-model="setupForm.startDate" class="w-full border rounded-lg px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">子專案結束日</label>
+                                <input type="date" v-model="setupForm.endDate" class="w-full border rounded-lg px-3 py-2 disabled:bg-slate-50 disabled:text-slate-400 cursor-not-allowed" disabled>
+                            </div>
+                        </div>
+                        <div class="mb-6">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-xs font-bold text-slate-500">里程碑 (Milestones)</label>
+                                <button @click="addSetupMilestone" class="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded">+ 新增節點</button>
+                            </div>
+                            <div v-for="(m, idx) in setupForm.milestones" :key="idx" class="flex gap-2 mb-2">
+                                <input type="date" v-model="m.date" class="border rounded px-2 py-1 text-sm">
+                                <input v-model="m.title" placeholder="節點標題" class="flex-1 border rounded px-2 py-1 text-sm">
+                                <button @click="setupForm.milestones.splice(idx,1)" class="text-red-400 hover:text-red-600"><i class="fas fa-times"></i></button>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <button @click="confirmSetup" :disabled="isSubmitting" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold shadow hover:bg-indigo-700 disabled:opacity-50">確認規劃並開案</button>
+                        </div>
+                    </div>
+                </template>
+                <div v-else class="text-center py-12 bg-white rounded-xl shadow-sm border border-slate-200">
+                    <i class="fas fa-user-lock text-4xl text-slate-300 mb-4"></i>
+                    <h3 class="text-lg font-bold text-slate-600">等待負責人規劃</h3>
+                    <p class="text-slate-400 text-xs mt-2">此專案需由 <span class="font-bold text-indigo-500">{{ currentSubProject.assignee }}</span> 設定里程碑後方可執行。</p>
+                </div>
+            </div>
+            <div v-else>
+                <div class="mb-8">
+                    <h3 class="font-bold text-slate-700 mb-4 text-sm uppercase tracking-wide">預定里程碑</h3>
+                    <div class="relative pl-6 space-y-0">
+                        <div v-if="sortedMilestones.length===0" class="text-slate-400 text-sm italic">無設定里程碑</div>
+                        <div v-for="(ms, index) in sortedMilestones" :key="ms.id" class="relative pl-10 pb-8 group" :class="{'last-node': index === sortedMilestones.length - 1}">
+                            <div class="node-line"></div>
+                            <div class="absolute left-0 top-1 w-8 h-8 rounded-full border-4 shadow-sm flex items-center justify-center bg-white" :class="ms.isCompleted ? 'border-emerald-500 text-emerald-500' : (isMilestoneOverdue(ms) ? 'border-orange-400 text-orange-500' : 'border-slate-300 text-slate-300')">
+                                <i v-if="ms.isCompleted" class="fas fa-check text-xs"></i>
+                                <i v-else-if="isMilestoneOverdue(ms)" class="fas fa-exclamation text-xs"></i>
+                                <div v-else class="w-2 h-2 rounded-full bg-current"></div>
+                            </div>
+                            <div class="bg-white border rounded-lg p-4 shadow-sm flex justify-between items-center" :class="ms.isCompleted ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200'">
+                                <div>
+                                    <div class="font-bold text-slate-800" :class="ms.isCompleted?'line-through text-slate-400':''">{{ ms.title }}</div>
+                                    <div class="text-xs text-slate-500 mt-1 flex items-center">
+                                        <i class="far fa-calendar-alt mr-1"></i> {{ ms.date }} 
+                                        <span v-if="ms.isCompleted" class="ml-2 text-emerald-600 font-bold">(完成於 {{ ms.completedDate }})</span>
+                                        <span v-else-if="isMilestoneOverdue(ms)" class="ml-2 text-orange-500 font-bold">已落後 {{ getDaysLate(ms.date) }} 天 (警示)</span>
+                                    </div>
+                                </div>
+                                <div v-if="ms.isCompleted">
+                                    <span v-if="ms.diffDays < 0" class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded font-bold">提早 {{ Math.abs(ms.diffDays) }} 天</span>
+                                    <span v-else-if="ms.diffDays > 0" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">延遲 {{ ms.diffDays }} 天</span>
+                                    <span v-else class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">準時完成</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div v-if="detailTab === 'events'" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-700">工作日誌與匹配 (Events)</h3>
+                    <button v-if="currentSubProject.status === 'in_progress' && canEditSubProject" @click="openEventModal" class="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded shadow flex items-center">
+                        <i class="fas fa-pen mr-2"></i> 新增工作日誌 / 交接
+                    </button>
+                </div>
+                <div class="p-0">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b">
+                            <tr>
+                                <th class="px-6 py-3">日期</th>
+                                <th class="px-6 py-3">執行人員</th>
+                                <th class="px-6 py-3">內容</th>
+                                <th class="px-6 py-3 text-center">工時</th>
+                                <th class="px-6 py-3">匹配節點</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <tr v-if="!currentSubProject.events || currentSubProject.events.length===0">
+                                <td colspan="5" class="px-6 py-8 text-center text-slate-400 italic">尚無工作記錄</td>
+                            </tr>
+                            <tr v-for="ev in (currentSubProject.events || [])" :key="ev.id">
+                                <td class="px-6 py-3 font-mono text-slate-600">{{ ev.date }}</td>
+                                <td class="px-6 py-3">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-5 h-5 rounded bg-slate-200 flex items-center justify-center text-[10px]">{{ ev.worker.substring(0,1) }}</div>
+                                        {{ ev.worker }}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-3 text-slate-700">
+                                    {{ ev.description }}
+                                    <div v-if="ev.handoffTo" class="mt-1 text-xs text-indigo-600 font-bold">
+                                        <i class="fas fa-arrow-right mr-1"></i> 交接給：{{ ev.handoffTo }}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-3 text-center font-bold text-blue-600">{{ ev.hours }} h</td>
+                                <td class="px-6 py-3">
+                                    <span v-if="ev.matchedMilestoneId" class="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                        <i class="fas fa-link mr-1"></i> {{ getMilestoneName(ev.matchedMilestoneId) }}
+                                    </span>
+                                    <span v-else class="text-slate-300 text-xs">-</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div v-if="detailTab === 'comments'" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-96">
+                <div class="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50">
+                    <div v-if="!currentSubProject.comments || currentSubProject.comments.length===0" class="text-center text-slate-400 text-xs italic py-10">尚無留言，開始討論吧！</div>
+                    <div v-for="c in currentSubProject.comments" :key="c.id" :class="['flex', c.user === currentUser.name ? 'justify-end' : 'justify-start']">
+                        <div :class="['max-w-[70%] rounded-lg p-3 text-sm shadow-sm relative', c.user === currentUser.name ? 'bg-indigo-600 text-white chat-right' : 'bg-white border border-slate-200 text-slate-700 chat-left']">
+                            <div class="text-[10px] opacity-70 mb-1 flex justify-between gap-4">
+                                <span>{{ c.user }}</span>
+                                <span>{{ c.time }}</span>
+                            </div>
+                            {{ c.content }}
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4 bg-white border-t border-slate-100 flex gap-2 relative">
+                    <input v-model="newComment" @keyup.enter="addComment" @input="checkForMention" type="text" class="flex-1 border rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="輸入留言... (@提及成員)">
+                    <div v-if="showMentionList" class="absolute bottom-16 left-4 bg-white shadow-xl rounded-lg border w-48 z-50 max-h-48 overflow-y-auto">
+                        <div v-for="u in users" :key="u.id" @click="selectMention(u.name)" class="px-3 py-2 text-xs hover:bg-indigo-50 cursor-pointer font-bold text-slate-700 border-b last:border-0 border-slate-50">
+                            {{ u.name }} <span class="text-[10px] text-slate-400 font-normal ml-1">({{ teamMap[u.team] }})</span>
+                        </div>
+                    </div>
+                    <button @click="addComment" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
             <div v-if="showMemberDetailModal" class="fixed inset-0 z-[9999] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center fade-in"><div class="bg-white w-[900px] h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden"><div class="px-8 py-6 border-b flex justify-between items-center bg-slate-50"><div><h3 class="font-bold text-2xl text-slate-800 flex items-center"><div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center text-lg mr-3">{{ currentMemberDetail.name.substring(0,1) }}</div>{{ currentMemberDetail.name }} <span class="text-sm font-normal text-slate-500 ml-2">({{ teamMap[currentMemberDetail.team] }} • {{ roleMap[currentMemberDetail.role] }})</span></h3></div><div class="flex items-center gap-3"><span class="text-xs font-bold text-slate-400">年份篩選:</span><select v-model="memberDetailYear" @change="recalcMemberDetail" class="border border-slate-300 rounded px-2 py-1 text-sm"><option value="all">全部</option><option v-for="y in [2023,2024,2025,2026]" :value="y">{{ y }}年</option></select><button @click="showMemberDetailModal=false" class="text-slate-400 hover:text-slate-600 ml-2"><i class="fas fa-times text-xl"></i></button></div></div><div class="flex-1 overflow-y-auto p-8 bg-slate-50/50"><div class="grid grid-cols-1 md:grid-cols-2 gap-8 h-full"><div class="space-y-6 flex flex-col h-full"><div class="bg-white rounded-xl border border-slate-200 overflow-hidden flex-1 flex flex-col"><div class="px-4 py-3 bg-red-50 border-b border-red-100 text-xs font-bold text-red-800 flex justify-between"><span>🔴 手上待辦清單 (Handling)</span><span>{{ memberDetailData.active.count }} 案</span></div><div class="flex-1 overflow-y-auto"><div v-if="memberDetailData.active.tasks.length===0" class="p-4 text-center text-slate-400 text-xs">目前無待辦</div><div v-for="t in memberDetailData.active.tasks" :key="t.sub.id" class="p-3 border-b last:border-0 hover:bg-slate-50 flex justify-between items-center"><div class="truncate pr-2"><div class="text-[10px] text-slate-400">{{ t.parent.title }}</div><div class="font-bold text-sm text-slate-700 truncate">{{ t.sub.title }}</div></div><div class="text-right flex flex-col items-end"><span class="text-xs font-bold text-indigo-600">{{ t.holdDays }} 天</span><span class="text-[10px] text-slate-400">滯留</span></div></div></div></div><div class="bg-white rounded-xl border border-slate-200 overflow-hidden flex-1 flex flex-col"><div class="px-4 py-3 bg-indigo-50 border-b border-indigo-100 text-xs font-bold text-indigo-800 flex justify-between"><span>🔵 負責專案列表 (Owned) <span v-if="memberDetailYear!=='all'">({{ memberDetailYear }})</span></span><span>{{ memberDetailData.overall.total }} 案</span></div><div class="flex-1 overflow-y-auto"><div v-if="memberDetailData.overall.projects.length===0" class="p-4 text-center text-slate-400 text-xs">無負責專案</div><div v-for="p in memberDetailData.overall.projects" :key="p.sub.id" class="p-3 border-b last:border-0 hover:bg-slate-50 flex justify-between items-center text-xs"><div class="truncate pr-2 font-bold text-slate-700">{{ p.sub.title }}</div><div><span :class="statusBadge(p.sub.status)" class="px-1.5 py-0.5 rounded text-[10px]">{{ statusMap[p.sub.status] }}</span></div></div></div></div></div><div class="space-y-6"><div><h4 class="font-bold text-lg text-slate-700 mb-3">執行風險指標</h4><div class="grid grid-cols-2 gap-4"><div class="bg-white p-5 rounded-xl border border-red-100 shadow-sm"><div class="text-xs text-slate-500 mb-1">平均滯留</div><div class="text-3xl font-bold text-red-600">{{ memberDetailData.active.avgHoldDays }} <span class="text-sm font-normal text-slate-400">天</span></div></div><div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm"><div class="text-xs text-slate-500 mb-1">最大滯留</div><div class="text-3xl font-bold text-slate-800">{{ memberDetailData.active.maxHold || 0 }} <span class="text-sm font-normal text-slate-400">天</span></div></div></div></div><div><h4 class="font-bold text-lg text-slate-700 mb-3">歷史績效指標 <span v-if="memberDetailYear!=='all'" class="text-xs bg-slate-200 px-2 py-0.5 rounded">{{ memberDetailYear }}</span></h4><div class="grid grid-cols-2 gap-4"><div class="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm"><div class="text-xs text-slate-500 mb-1">延遲率</div><div class="text-2xl font-bold text-indigo-600">{{ memberDetailData.overall.delayRate }}%</div></div><div class="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm"><div class="text-xs text-slate-500 mb-1">總延遲天數</div><div class="text-2xl font-bold text-pink-600">{{ memberDetailData.overall.totalDelayDays }} <span class="text-xs text-slate-400">天</span></div></div></div></div><div class="bg-white rounded-xl border border-slate-200 overflow-hidden"><div class="px-4 py-3 bg-slate-50 border-b text-xs font-bold text-slate-500">主要延遲原因 (Top 5)</div><div class="p-4 space-y-3"><div v-if="memberDetailData.overall.reasons.length===0" class="text-center text-slate-400 text-xs">尚無延遲紀錄</div><div v-for="r in memberDetailData.overall.reasons.slice(0,5)" :key="r.name" class="flex items-center text-sm"><span class="w-24 font-bold text-slate-600 truncate">{{ r.name }}</span><div class="flex-1 h-2 bg-slate-100 rounded-full mx-3"><div class="h-2 bg-indigo-500 rounded-full" :style="{width: r.percent+'%'}"></div></div><span class="font-bold text-indigo-600">{{ r.count }}</span></div></div></div></div></div></div></div></div>
             
@@ -564,7 +773,8 @@
                 <textarea v-model="delayForm.remark" class="w-full border rounded-lg px-3 py-2 h-20" placeholder="備註說明..."></textarea><div class="flex justify-end space-x-3 pt-4"><button @click="showDelayReasonModal=false" class="px-4 text-slate-500">取消</button><button @click="submitDelayModal" :disabled="isSubmitting" :class="modalMode.includes('abort')?'bg-red-600':'bg-orange-500'" class="text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50">確認</button></div></div></div>
         </template>
     </div>
-<script type="module">
+
+    <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -580,7 +790,7 @@
         const DataFactory = {
             createProject: (input, user) => ({
                 brandId: input.brandId || '',
-                title: input.title ? `【${input.startDate || 'NoDate'}】${input.title}` : 'Untitled Project',
+                title: input.title ? `[${input.startDate || 'NoDate'}] ${input.title}` : 'Untitled Project',
                 startDate: input.startDate || new Date().toISOString().split('T')[0],
                 endDate: input.endDate || '',
                 owner: user?.name || 'Unknown',
@@ -709,50 +919,31 @@
                     let overallCount=0, overallDelay=0, overallDelayDays=0;
                     let activeReasons={}, overallReasons={}, archivedList=[];
                     let totalPeriodHours = 0; 
-
                     this.allSubProjects.forEach(item => {
                         const sp = item.branch;
-                        
-                        // 計算區間內的總工時 (用於上方卡片數據)
-                        (sp.events || []).forEach(ev => { 
-                            if (this.checkDateMatch(ev.date)) {
-                                totalPeriodHours += Number(ev.hours || 0); 
-                            }
-                        });
-
-                        // 儀表板：執行中數據
+                        (sp.events || []).forEach(ev => { if (this.checkDateMatch(ev.date)) totalPeriodHours += Number(ev.hours || 0); });
                         if(sp.status === 'in_progress') {
                             activeCount++;
                             const d = this.getProjectHealth(sp);
                             if(d.type === 'delay') { activeDelay++; activeDelayDays += d.days; }
                             if(sp.delayReason) activeReasons[sp.delayReason] = (activeReasons[sp.delayReason] || 0) + 1;
                         }
-
-                        // 歷史報表：歸檔數據
                         if(this.currentView === 'history_report') {
-                             // 檢查是否符合篩選日期
                              const isMatch = this.checkDateMatch(sp.completedDate || sp.endDate);
-                             
                              if((sp.status === 'completed' || sp.status === 'aborted') && isMatch) {
-                                overallCount++;
-                                
-                                // ★★★ [修正] 這裡加入計算單一專案總工時，讓列表可以顯示 ★★★
+                                overallCount++; 
                                 sp.actHours = this.calcSubProjectHours(sp);
-                                
                                 archivedList.push(item);
-
                                 const d = sp.finalDelayDays || 0;
                                 if(d > 0 && sp.status !== 'aborted') { overallDelay++; overallDelayDays += d; }
                                 if(sp.delayReason) overallReasons[sp.delayReason] = (overallReasons[sp.delayReason] || 0) + 1;
                              }
                         }
                     });
-
                     return {
                         active: { count: activeCount, delayRate: activeCount?Math.round(activeDelay/activeCount*100):0, totalDelayDays: activeDelayDays, reasonList: this.objToArr(activeReasons, activeCount) },
                         overall: { totalProjects: overallCount, delayRate: overallCount?Math.round(overallDelay/overallCount*100):0, totalDelayDays: overallDelayDays, reasonList: this.objToArr(overallReasons, overallCount) },
-                        archivedList,
-                        archivedHours: totalPeriodHours
+                        archivedList, archivedHours: totalPeriodHours
                     };
                 },
                 currentProjectStats() {
@@ -770,8 +961,6 @@
                     });
                     return { total: subs.length, completed, act, delays, maxDelay, progress: subs.length ? Math.round(totalPercent/subs.length) : 0 };
                 },
-                
-                // --- 請替換 computed 內的 calendarDays ---
                 calendarDays() {
                     const days = [];
                     const firstDayOfMonth = new Date(this.calendarYear, this.calendarMonth - 1, 1);
@@ -793,18 +982,16 @@
 
                     this.allSubProjects.forEach(item => {
                         const sp = item.branch;
-                        // 篩選：只顯示與我相關的專案
                         const isMine = item.parent.owner === this.currentUser.name || sp.assignee === this.currentUser.name || sp.currentHandler === this.currentUser.name;
                         if (!isMine) return;
 
-                        // 取得品牌名稱
                         const brandPrefix = item.brand ? `[${item.brand.name}] ` : '';
 
                         if(sp.endDate) {
                             const day = days.find(d => d.isoDate === sp.endDate);
                             if(day) day.events.push({ 
                                 id: sp.id, 
-                                title: `${brandPrefix}${sp.title}`, // 加上品牌名稱
+                                title: `${brandPrefix}${sp.title}`, 
                                 type: 'deadline', 
                                 sub: sp, 
                                 parent: item.parent 
@@ -815,7 +1002,7 @@
                                 const day = days.find(d => d.isoDate === m.date);
                                 if(day) day.events.push({ 
                                     id: m.id, 
-                                    title: `${brandPrefix} ${m.title}`, // 加上品牌名稱
+                                    title: `${brandPrefix} ${m.title}`, 
                                     type: 'milestone', 
                                     sub: sp, 
                                     parent: item.parent 
@@ -825,8 +1012,6 @@
                     });
                     return days;
                 },
-                // ----------------------------------------------------
-
                 memberStats() {
                     return this.users.map(m => {
                         let active = 0, delay = 0;
@@ -872,7 +1057,7 @@
                             });
                         }
                     });
-                    return Object.values(stats).filter(s => s.hours > 0).sort((a, b) => b.hours - a.hours);
+                    return Object.values(stats).sort((a, b) => b.hours - a.hours);
                 },
                 departmentHours() {
                     const deptStats = {}; let totalAll = 0;
@@ -1086,6 +1271,25 @@
                         this.showEditBranchModal = false; 
                     } finally { this.isSubmitting = false; }
                 },
+                
+                // 新增：修改母專案名稱
+                async editParentTitle() {
+                    const newTitle = prompt("修改母專案名稱:", this.currentParentProject.title);
+                    if (newTitle && newTitle.trim() !== "" && newTitle !== this.currentParentProject.title) {
+                        this.currentParentProject.title = newTitle;
+                        await updateDoc(doc(db, "projects", this.currentParentProject.id), { title: newTitle });
+                    }
+                },
+
+                // 新增：修改子專案名稱
+                async editSubProjectTitle() {
+                    const newTitle = prompt("修改子專案名稱:", this.currentSubProject.title);
+                    if (newTitle && newTitle.trim() !== "" && newTitle !== this.currentSubProject.title) {
+                        this.currentSubProject.title = newTitle;
+                        await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), { title: newTitle });
+                    }
+                },
+
                 addSetupMilestone() { this.setupForm.milestones.push({ id: 'ms'+Date.now(), date: '', title: '', isCompleted: false }); },
                 async confirmSetup() { 
                     if (this.currentSubProject.assignee !== this.currentUser.name) return alert("權限不足：只有專案負責人才能進行規劃設定");
@@ -1107,10 +1311,11 @@
                     const title = prompt("連結名稱:"); if (!title) return; 
                     const url = prompt("網址 (URL):"); if (!url) return; 
                     const newLinkObj = { title, url };
-                    const links = [...(this.currentSubProject.links || []), newLinkObj]; 
-                    await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), { links }); 
+                    // 修正：檢查是否為陣列，避免 push 錯誤
                     if (!this.currentSubProject.links) this.currentSubProject.links = [];
-                    this.currentSubProject.links.push(newLinkObj);
+                    const links = [...this.currentSubProject.links, newLinkObj]; 
+                    await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), { links }); 
+                    this.currentSubProject.links = links;
                 },
                 async addComment() { 
                     if (!this.newComment.trim()) return; 
@@ -1245,7 +1450,6 @@
                 openCalendarSideEvent(ev) { this.calendarSideEvent = ev; },
                 openParentAbortModal() { this.modalMode = 'parent_abort'; this.delayForm = { reason: '策略調整', remark: '' }; this.showDelayReasonModal = true; },
                 openSubAbortModal() { this.modalMode = 'sub_abort'; this.delayForm = { reason: '策略調整', remark: '' }; this.showDelayReasonModal = true; },
-                tryCompleteSubProject() { const delayDays = this.getSubProjectDelayDays(this.currentSubProject); const hasUnfinishedMilestones = (this.currentSubProject.milestones || []).some(m => !m.isCompleted); if (delayDays > 0 || hasUnfinishedMilestones) { this.modalMode = 'sub_complete'; this.delayForm = { reason: '人力不足', remark: '' }; this.showDelayReasonModal = true; } else { if(confirm("確認結案？")) this.finalizeSubProject(); } },
                 async submitDelayModal() {
                     this.isSubmitting = true;
                     try {
@@ -1295,19 +1499,6 @@
                             });
                             this.currentSubProject.status = 'aborted'; 
                         } 
-                        else {
-                            const currentDelay = this.getSubProjectDelayDays(this.currentSubProject);
-                            const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Taipei' });
-                            await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), { 
-                                delayReason: this.delayForm.reason, 
-                                delayRemark: this.delayForm.remark || '', 
-                                finalDelayDays: currentDelay > 0 ? currentDelay : 0, 
-                                status: 'completed',
-                                completedDate: today 
-                            });
-                            this.currentSubProject.status = 'completed';
-                            this.currentSubProject.finalDelayDays = currentDelay > 0 ? currentDelay : 0;
-                        }
                         alert("資料已儲存");
                         this.showDelayReasonModal = false; 
                         this.delayForm = { reason: '人力不足', remark: '' }; 
@@ -1317,13 +1508,6 @@
                     } finally {
                         this.isSubmitting = false;
                     }
-                },
-                async finalizeSubProject() { 
-                    this.isSubmitting = true;
-                    try {
-                        const d = this.getSubProjectDelayDays(this.currentSubProject); 
-                        await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), { status: 'completed', finalDelayDays: d > 0 ? d : 0 }); 
-                    } finally { this.isSubmitting = false; }
                 },
                 async completeParentProject(proj) { if(confirm('全案歸檔？')) await updateDoc(doc(db, "projects", proj.id), { status: 'completed' }); this.currentView = 'dashboard'; },
                 exportHistoryReport() { const rows = [ ['品牌', '母專案', '子專案', '負責人', '結案日期', '總工時', '最終狀態', '延遲天數', '延遲原因'], ...this.scopedStats.archivedList.map(i => [ i.brand.name, i.parent.title, i.branch.title, i.branch.assignee, i.branch.endDate, i.branch.actHours || 0, i.branch.status, i.branch.finalDelayDays || 0, i.branch.delayReason || '' ]) ]; let csvContent = "data:text/csv;charset=utf-8,\uFEFF" + rows.map(e => e.join(",")).join("\n"); const encodedUri = encodeURI(csvContent); const link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", `mkgt_history_report.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link); },
