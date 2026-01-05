@@ -124,7 +124,8 @@
                             <div
                                 class="px-4 py-3 border-b text-xs font-bold text-slate-500 bg-slate-50 flex justify-between items-center">
                                 <span>通知中心</span><button v-if="notifications.length > 0" @click="clearAllNotifications"
-                                    class="text-indigo-600 hover:underline">全部清除</button></div>
+                                    class="text-indigo-600 hover:underline">全部清除</button>
+                            </div>
                             <div class="max-h-80 overflow-y-auto">
                                 <div v-if="notifications.length === 0"
                                     class="p-8 text-center text-slate-400 text-xs italic">無新通知</div>
@@ -133,7 +134,8 @@
                                     <div
                                         class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center flex-shrink-0 text-xs">
                                         <i class="fas"
-                                            :class="n.type === 'handoff' ? 'fa-exchange-alt' : 'fa-tasks'"></i></div>
+                                            :class="n.type === 'handoff' ? 'fa-exchange-alt' : 'fa-tasks'"></i>
+                                    </div>
                                     <div>
                                         <div class="text-xs font-bold text-slate-700 mb-0.5">{{ n.title }}</div>
                                         <div class="text-[10px] text-slate-500">{{ n.message }}</div>
@@ -194,7 +196,8 @@
                                         class="flex-1 truncate">{{ brand.name }}</span><button
                                         @click.stop="openProjectModal(brand.id)"
                                         class="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-white transition px-1"
-                                        title="開立專案">+</button></div>
+                                        title="開立專案">+</button>
+                                </div>
                                 <div v-show="isBrandExpanded(brand.id)" class="mt-1">
                                     <div v-for="proj in getMatchingProjects(brand.id)" :key="proj.id" class="mb-1">
                                         <div @click="toggleExpand(proj); selectParentProject(proj)"
@@ -227,7 +230,8 @@
                         <div @click="showArchived = !showArchived"
                             class="px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-300 cursor-pointer flex rounded-lg hover:bg-slate-800 transition">
                             <span><i class="fas fa-archive mr-2"></i> 已歸檔/中止</span><i
-                                :class="['fas transition', showArchived ? 'rotate-180' : '']"></i></div>
+                                :class="['fas transition', showArchived ? 'rotate-180' : '']"></i>
+                        </div>
                         <div v-if="showArchived"
                             class="mt-2 space-y-1 max-h-48 overflow-y-auto bg-slate-800 rounded-lg p-2 border border-slate-700 fade-in">
                             <div v-for="brand in sortedBrands" :key="'arch-'+brand.id">
@@ -240,7 +244,8 @@
                                         class="text-xs text-slate-400 hover:text-white cursor-pointer truncate px-2 py-1 rounded hover:bg-slate-700 flex items-center">
                                         <i class="fas fa-check-circle text-emerald-500 mr-2"
                                             v-if="proj.status==='completed'"></i><i class="fas fa-ban text-red-400 mr-2"
-                                            v-else-if="proj.status==='aborted'"></i> {{ proj.title }}</div>
+                                            v-else-if="proj.status==='aborted'"></i> {{ proj.title }}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -269,7 +274,8 @@
                                     <div class="text-xs font-bold text-slate-500 uppercase">執行中案件</div>
                                     <div
                                         class="w-8 h-8 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center">
-                                        <i class="fas fa-running"></i></div>
+                                        <i class="fas fa-running"></i>
+                                    </div>
                                 </div>
                                 <div class="text-3xl font-bold text-slate-800">{{ scopedStats.active?.count || 0 }}
                                 </div>
@@ -279,7 +285,8 @@
                                     <div class="text-xs font-bold text-slate-500 uppercase">當前延遲率</div>
                                     <div
                                         class="w-8 h-8 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center">
-                                        <i class="fas fa-chart-line"></i></div>
+                                        <i class="fas fa-chart-line"></i>
+                                    </div>
                                 </div>
                                 <div class="text-3xl font-bold text-orange-600">{{ scopedStats.active?.delayRate || 0
                                     }}<span class="text-sm">%</span></div>
@@ -289,7 +296,8 @@
                                     <div class="text-xs font-bold text-slate-500 uppercase">當前延遲天數</div>
                                     <div
                                         class="w-8 h-8 rounded-full bg-red-100 text-red-500 flex items-center justify-center">
-                                        <i class="fas fa-clock"></i></div>
+                                        <i class="fas fa-clock"></i>
+                                    </div>
                                 </div>
                                 <div class="text-3xl font-bold text-red-600">{{ scopedStats.active?.totalDelayDays || 0
                                     }} <span class="text-sm font-normal text-slate-400">天</span></div>
@@ -344,7 +352,7 @@
                                         </tr>
                                         <tr v-for="item in filteredMonitorList" :key="item.branch.id"
                                             class="hover:bg-slate-50 transition cursor-pointer"
-                                            @click="selectSubProject(item.branch, item.parent)">
+                                            @click="openQuickView(item.branch, item.parent)">
                                             <td class="px-6 py-3">
                                                 <div class="text-xs text-slate-400 flex items-center gap-1 mb-1"><span
                                                         class="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold">{{
@@ -1662,6 +1670,139 @@
                                     :disabled="isSubmitting"
                                     :class="modalMode.includes('abort')?'bg-red-600':'bg-orange-500'"
                                     class="text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50">確認</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="showQuickViewModal"
+                        class="fixed inset-0 z-[9999] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center fade-in"
+                        @click.self="showQuickViewModal=false">
+                        <div
+                            class="bg-white w-[450px] max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col relative">
+                            <div
+                                class="px-6 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-start">
+                                <div>
+                                    <div class="text-xs font-bold text-slate-400 mb-1 flex items-center gap-2">
+                                        <span class="bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded">{{
+                                            quickViewData.parent.title }}</span>
+                                    </div>
+                                    <h3 class="text-lg font-bold text-slate-800 leading-tight">{{
+                                        quickViewData.branch.title }}</h3>
+                                </div>
+                                <button @click="showQuickViewModal=false"
+                                    class="text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 transition">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto p-0">
+                                <div class="p-6 bg-white border-b border-slate-100">
+                                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-3 tracking-wider">目前處理情形
+                                    </h4>
+
+                                    <div class="grid grid-cols-2 gap-4 mb-4">
+                                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                            <div class="text-[10px] text-slate-500 mb-1">目前球權 (Handler)</div>
+                                            <div class="font-bold text-slate-800 flex items-center">
+                                                <div
+                                                    class="w-6 h-6 rounded bg-indigo-600 text-white flex items-center justify-center text-xs mr-2">
+                                                    {{ quickViewData.branch.currentHandler.substring(0,1) }}
+                                                </div>
+                                                {{ quickViewData.branch.currentHandler }}
+                                            </div>
+                                        </div>
+                                        <div class="p-3 rounded-lg border"
+                                            :class="getDaysHeld(quickViewData.branch) > 3 ? 'bg-red-50 border-red-100' : 'bg-emerald-50 border-emerald-100'">
+                                            <div class="text-[10px] mb-1"
+                                                :class="getDaysHeld(quickViewData.branch) > 3 ? 'text-red-500' : 'text-emerald-500'">
+                                                已滯留 (Days Held)</div>
+                                            <div class="font-bold text-xl"
+                                                :class="getDaysHeld(quickViewData.branch) > 3 ? 'text-red-600' : 'text-emerald-600'">
+                                                {{ getDaysHeld(quickViewData.branch) }} <span
+                                                    class="text-xs font-normal text-slate-400">天</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        class="flex items-center justify-between bg-slate-50 px-3 py-2 rounded text-xs">
+                                        <span class="font-bold text-slate-500">截止狀況</span>
+                                        <span v-if="getProjectHealth(quickViewData.branch).type === 'delay'"
+                                            class="text-red-600 font-bold bg-white px-2 py-0.5 rounded shadow-sm border border-red-100">
+                                            🔴 延誤 {{ getProjectHealth(quickViewData.branch).days }} 天
+                                        </span>
+                                        <span v-else-if="getProjectHealth(quickViewData.branch).type === 'lag'"
+                                            class="text-orange-500 font-bold bg-white px-2 py-0.5 rounded shadow-sm border border-orange-100">
+                                            🟠 進度落後 {{ getProjectHealth(quickViewData.branch).days }} 天
+                                        </span>
+                                        <span v-else
+                                            class="text-emerald-600 font-bold bg-white px-2 py-0.5 rounded shadow-sm border border-emerald-100">
+                                            🟢 進度正常
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div class="p-6">
+                                    <h4 class="text-xs font-bold text-slate-400 uppercase mb-4 tracking-wider">專案節點
+                                        (Milestones)</h4>
+
+                                    <div class="relative pl-2">
+                                        <div class="absolute left-[19px] top-2 bottom-4 w-0.5 bg-slate-200"></div>
+
+                                        <div v-if="!quickViewData.branch.milestones || quickViewData.branch.milestones.length===0"
+                                            class="text-center text-slate-400 text-sm py-4 italic">
+                                            尚未設定節點
+                                        </div>
+
+                                        <div v-for="(ms, idx) in getQuickViewMilestones(quickViewData.branch)"
+                                            :key="idx" class="relative pl-10 mb-6 last:mb-0 group">
+
+                                            <div class="absolute left-0 top-0 w-10 h-10 rounded-full border-4 flex items-center justify-center bg-white z-10 transition-all"
+                                                :class="[
+                                ms.isPast ? 'border-emerald-500 text-emerald-500' : (ms.isCurrent ? 'border-indigo-500 text-indigo-600 ring-4 ring-indigo-50' : 'border-slate-200 text-slate-300')
+                            ]">
+                                                <i v-if="ms.isPast" class="fas fa-check font-bold"></i>
+                                                <i v-else-if="ms.isCurrent"
+                                                    class="fas fa-map-marker-alt animate-bounce"></i>
+                                                <div v-else class="w-2 h-2 rounded-full bg-slate-300"></div>
+                                            </div>
+
+                                            <div class="rounded-lg p-3 border transition-all" :class="[
+                                ms.isCurrent ? 'bg-indigo-50 border-indigo-200 shadow-sm transform scale-105 origin-left' : 'bg-white border-slate-100 grayscale opacity-70'
+                             ]">
+                                                <div class="flex justify-between items-start">
+                                                    <div class="font-bold text-sm"
+                                                        :class="ms.isCurrent ? 'text-indigo-800' : 'text-slate-600'">{{
+                                                        ms.title }}</div>
+                                                    <div class="text-[10px] font-mono px-1.5 py-0.5 rounded"
+                                                        :class="ms.isCurrent ? 'bg-white text-indigo-600 font-bold' : 'bg-slate-100 text-slate-400'">
+                                                        {{ ms.date }}
+                                                    </div>
+                                                </div>
+                                                <div v-if="ms.isCurrent"
+                                                    class="mt-2 text-[10px] text-indigo-500 font-bold flex items-center">
+                                                    <i class="fas fa-spinner fa-spin mr-1"></i> Current Target
+                                                </div>
+                                                <div v-if="ms.isPast"
+                                                    class="mt-1 text-[10px] text-emerald-600 font-bold">
+                                                    完成於: {{ ms.completedDate || 'Checked' }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 z-20">
+                                <button @click="showQuickViewModal=false"
+                                    class="flex-1 bg-white border border-slate-300 text-slate-600 py-2.5 rounded-lg font-bold text-sm hover:bg-slate-50 transition">
+                                    關閉
+                                </button>
+                                <button
+                                    @click="selectSubProject(quickViewData.branch, quickViewData.parent); showQuickViewModal=false"
+                                    class="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg font-bold text-sm hover:bg-indigo-700 shadow-lg hover:shadow-indigo-500/30 transition flex items-center justify-center">
+                                    <span>進入詳情</span> <i class="fas fa-arrow-right ml-2"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
