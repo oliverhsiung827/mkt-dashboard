@@ -32,7 +32,49 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
-        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] }, colors: { slate: { 850: '#1e293b', 900: '#0f172a' } } } } }
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    },
+                    colors: {
+                        // 上洋企業標準色
+                        upyoung: {
+                            blue: '#004098',
+                            yellow: '#fabe00'
+                        },
+                        // 主色系 (維持藍色，作為結構與按鈕)
+                        indigo: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#004098', // 上洋藍 (按鈕背景)
+                            700: '#00337a', // Hover 深藍
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        },
+                        // ★★★ 關鍵修改：將強調色系直接換成「上洋黃」 ★★★
+                        // 這會讓進度條、燈號、重點文字變成金黃色
+                        emerald: {
+                            500: '#fabe00', // 原本的綠色進度條 -> 變金黃色
+                            600: '#e0a800',
+                        },
+                        blue: {
+                            500: '#004098',
+                            600: '#00337a'
+                        },
+                        // 將通知紅點改為金黃色
+                        red: {
+                            500: '#fabe00',
+                        }
+                    }
+                }
+            }
+        }
     </script>
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -52,7 +94,7 @@
         <div v-if="!userParams" class="fixed inset-0 z-[9999] flex items-center justify-center login-bg">
             <div class="bg-white/95 backdrop-blur-sm p-10 rounded-2xl shadow-2xl w-[400px] fade-in">
                 <div class="text-center mb-8">
-                    <h1 class="text-2xl font-bold text-slate-800">上洋行銷部 戰情室</h1>
+                    <h1 class="text-2xl font-bold text-slate-800">上洋行銷部 專案管理系統</h1>
                     <p class="text-slate-500 text-sm mt-2">v1.3</p>
                 </div>
                 <div v-if="authError" class="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-6 flex items-center"><i
@@ -102,14 +144,13 @@
                         class="mr-4 text-slate-500 hover:text-indigo-600 md:hidden">
                         <i class="fas fa-bars text-xl"></i>
                     </button>
-                    <div
-                        class="w-8 h-8 rounded bg-indigo-600 flex items-center justify-center text-white text-xs mr-3 flex-shrink-0">
-                        <i class="fas fa-rocket"></i>
-                    </div>
+
+                    <img src="/logo.png" alt="上洋 Logo" class="h-8 w-auto mr-3 object-contain" />
+
                     <span class="hidden md:inline">上洋行銷部</span>
                     <span class="md:hidden">上洋行銷</span>
                     <span class="font-normal text-slate-400 mx-2">/</span>
-                    <span class="text-sm md:text-xl">戰情室</span>
+                    <span class="text-sm md:text-xl">專案管理系統</span>
                 </div>
                 <div class="flex items-center gap-4">
                     <div class="relative">
