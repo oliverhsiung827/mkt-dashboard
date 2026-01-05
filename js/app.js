@@ -75,8 +75,14 @@ const app = createApp({
       users: [],
       currentUserId: null,
       brands: [],
-      rawParents: [],
-      rawSubs: [],
+
+      // [效能優化] 資料拆分
+      activeParents: [],
+      activeSubs: [],
+      historyParents: [],
+      historySubs: [],
+      isHistoryLoaded: false,
+
       indexedSubsByParent: {},
       indexedBrandMap: {},
       indexedParentMap: {},
@@ -135,7 +141,7 @@ const app = createApp({
       showMobileSidebar: false,
       hasCheckedDailyTasks: false,
 
-      // [New] 快速檢視視窗狀態
+      // 快速檢視視窗
       showQuickViewModal: false,
       quickViewData: null,
     };
@@ -169,6 +175,25 @@ const app = createApp({
     });
   },
   computed: {
+    // [New] 自動計算年份清單
+    availableYears() {
+      const startYear = 2025;
+      const currentYear = new Date().getFullYear();
+      const endYear = currentYear + 1;
+      const years = [];
+      for (let y = startYear; y <= endYear; y++) {
+        years.push(y);
+      }
+      return years;
+    },
+    // [效能優化] 合併活躍與歷史資料
+    rawParents() {
+      return [...this.activeParents, ...this.historyParents];
+    },
+    rawSubs() {
+      return [...this.activeSubs, ...this.historySubs];
+    },
+
     currentUser() {
       return (
         (this.users || []).find((u) => u.id === this.currentUserId) || {
@@ -332,7 +357,6 @@ const app = createApp({
           }
         }
       });
-      // [Modified] 工時計算進位到小數點第一位
       return {
         active: {
           count: activeCount,
@@ -351,7 +375,7 @@ const app = createApp({
           reasonList: this.objToArr(overallReasons, overallCount),
         },
         archivedList,
-        archivedHours: Math.round(totalPeriodHours * 10) / 10,
+        archivedHours: Math.round(totalPeriodHours * 10) / 10, // 進位到小數點第一位
       };
     },
     currentProjectStats() {
@@ -556,6 +580,24 @@ const app = createApp({
         .sort((a, b) => b.hours - a.hours);
     },
   },
+  watch: {
+    // [效能優化] 觸發載入歷史資料
+    currentView(newView) {
+      if (newView === "history_report") {
+        this.loadHistoryData();
+      }
+    },
+    showArchived(isShown) {
+      if (isShown) {
+        this.loadHistoryData();
+      }
+    },
+    memberDetailYear(newYear) {
+      if (newYear !== "all" && newYear < new Date().getFullYear()) {
+        this.loadHistoryData();
+      }
+    },
+  },
   methods: {
     requestNotificationPermission() {
       if (!("Notification" in window)) return;
@@ -639,6 +681,8 @@ const app = createApp({
             comments: data.comments || [],
           };
         };
+
+        // 1. Users 與 Brands (全量)
         onSnapshot(collection(db, "users"), (s) => {
           this.users = s.docs
             .map((d) => ({ id: d.id, ...d.data() }))
@@ -649,12 +693,26 @@ const app = createApp({
           this.brands = s.docs.map((d) => ({ id: d.id, ...d.data() }));
           checkReady();
         });
-        onSnapshot(collection(db, "projects"), (s) => {
-          this.rawParents = s.docs.map((d) => safeProject(d));
+
+        // 2. [效能優化] 母專案：只監聽 'active' (需索引)
+        const qProjects = query(
+          collection(db, "projects"),
+          where("status", "==", "active")
+        );
+        onSnapshot(qProjects, (s) => {
+          this.activeParents = s.docs.map((d) => safeProject(d));
+          this.buildIndexes();
           checkReady();
         });
-        onSnapshot(collection(db, "sub_projects"), (s) => {
-          this.rawSubs = s.docs.map((d) => safeSub(d));
+
+        // 3. [效能優化] 子專案：只監聽 'setup' 或 'in_progress'
+        const qSubs = query(
+          collection(db, "sub_projects"),
+          where("status", "in", ["setup", "in_progress"])
+        );
+        onSnapshot(qSubs, (s) => {
+          this.activeSubs = s.docs.map((d) => safeSub(d));
+          this.buildIndexes();
           checkReady();
         });
 
@@ -695,6 +753,62 @@ const app = createApp({
         this.dataReady = true;
       }
     },
+
+    // [New] 延遲載入歷史資料
+    async loadHistoryData() {
+      if (this.isHistoryLoaded) return;
+      this.isSubmitting = true;
+      try {
+        const safeProject = (d) => ({
+          id: d.id,
+          brandId: "",
+          title: "Untitled",
+          status: "active",
+          startDate: "",
+          endDate: "",
+          owner: "Unknown",
+          ...d.data(),
+        });
+        const safeSub = (d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            parentId: "",
+            title: "Untitled",
+            status: "setup",
+            ...data,
+            milestones: data.milestones || [],
+            events: data.events || [],
+            links: data.links || [],
+            comments: data.comments || [],
+          };
+        };
+        const qHistoryProjects = query(
+          collection(db, "projects"),
+          where("status", "in", ["completed", "aborted"])
+        );
+        const snapProj = await getDocs(qHistoryProjects);
+        this.historyParents = snapProj.docs.map((d) => safeProject(d));
+
+        const qHistorySubs = query(
+          collection(db, "sub_projects"),
+          where("status", "in", ["completed", "aborted"])
+        );
+        const snapSubs = await getDocs(qHistorySubs);
+        this.historySubs = snapSubs.docs.map((d) => safeSub(d));
+
+        this.isHistoryLoaded = true;
+        this.buildIndexes();
+        console.log(
+          `歷史資料載入完畢: ${this.historyParents.length} 專案, ${this.historySubs.length} 子專案`
+        );
+      } catch (e) {
+        console.error("載入歷史失敗", e);
+      } finally {
+        this.isSubmitting = false;
+      }
+    },
+
     buildIndexes() {
       const subMap = {};
       this.rawSubs.forEach((s) => {
@@ -978,12 +1092,15 @@ const app = createApp({
           this.subProjectForm,
           this.currentUser
         );
+
+        // [防呆] 子專案起點不早於母專案
         const parentObj = this.indexedParentMap[this.subProjectForm.parentId];
         if (parentObj && parentObj.startDate) {
           if (newSub.startDate < parentObj.startDate) {
             newSub.startDate = parentObj.startDate;
           }
         }
+
         const docRef = await addDoc(collection(db, "sub_projects"), newSub);
         if (newSub.assignee !== this.currentUser.name)
           this.sendNotification(
@@ -1010,6 +1127,7 @@ const app = createApp({
     async saveEditedBranch() {
       this.isSubmitting = true;
       try {
+        // [防呆] 編輯檢查
         if (
           this.editBranchForm.startDate < this.currentParentProject.startDate
         ) {
@@ -1017,6 +1135,7 @@ const app = createApp({
             `錯誤：子專案開始日 (${this.editBranchForm.startDate}) 不可早於母專案開始日 (${this.currentParentProject.startDate})`
           );
         }
+
         await updateDoc(
           doc(db, "sub_projects", this.currentSubProject.id),
           this.editBranchForm
@@ -1223,6 +1342,7 @@ const app = createApp({
         }
       }
 
+      // [防呆] 若為最後一個節點，禁止轉移球權
       if (this.eventForm.matchedMilestoneId) {
         const sortedMilestones = [...this.currentSubProject.milestones].sort(
           (a, b) => new Date(a.date) - new Date(b.date)
@@ -1728,26 +1848,30 @@ const app = createApp({
       }
     },
 
-    // --- [New] 快速檢視視窗 ---
+    // --- 快速檢視視窗 ---
     openQuickView(branch, parent) {
       this.quickViewData = { branch, parent };
       this.showQuickViewModal = true;
     },
+    // [New] 快速檢視專用：取得排序後的里程碑與狀態
     getQuickViewMilestones(branch) {
-        if (!branch.milestones) return [];
-        // 依照日期排序
-        const sorted = [...branch.milestones].sort((a, b) => new Date(a.date) - new Date(b.date));
-        
-        // 找出第一個「未完成」的節點索引，標記為 current
-        const firstIncompleteIdx = sorted.findIndex(m => !m.isCompleted);
-        
-        return sorted.map((m, idx) => ({
-            ...m,
-            // 如果全部都完成了，current 就是 -1 (沒有)，否則就是第一個未完成的
-            isCurrent: (firstIncompleteIdx !== -1 && idx === firstIncompleteIdx),
-            isPast: m.isCompleted,
-            isFuture: !m.isCompleted && (firstIncompleteIdx !== -1 && idx > firstIncompleteIdx)
-        }));
+      if (!branch.milestones) return [];
+      // 依照日期排序
+      const sorted = [...branch.milestones].sort(
+        (a, b) => new Date(a.date) - new Date(b.date)
+      );
+      // 找出第一個「未完成」的節點索引，標記為 current
+      const firstIncompleteIdx = sorted.findIndex((m) => !m.isCompleted);
+      return sorted.map((m, idx) => ({
+        ...m,
+        // 如果全部都完成了，current 就是 -1 (沒有)，否則就是第一個未完成的
+        isCurrent: firstIncompleteIdx !== -1 && idx === firstIncompleteIdx,
+        isPast: m.isCompleted,
+        isFuture:
+          !m.isCompleted &&
+          firstIncompleteIdx !== -1 &&
+          idx > firstIncompleteIdx,
+      }));
     },
   },
 });
