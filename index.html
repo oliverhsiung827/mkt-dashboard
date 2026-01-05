@@ -683,11 +683,14 @@
                 <label class="text-xs font-bold text-orange-700 block mb-1">延遲原因標記 (執行中可填)</label>
                 <select v-model="editBranchForm.delayReason" class="w-full border border-orange-200 rounded-lg px-3 py-2 text-sm bg-white">
                     <option value="">-- 無 --</option>
-                    <option value="人力不足">人力不足</option>
-                    <option value="客戶端延遲">客戶端延遲</option>
                     <option value="需求變更">需求變更</option>
-                    <option value="技術瓶頸">技術瓶頸</option>
+                    <option value="需求不確定">需求不確定</option>
+                    <option value="溝通成本高">溝通成本高</option>
+                    <option value="人力不足">人力不足</option>
+                    <option value="低估工作量">低估工作量</option>
+                    <option value="多方共識未定">多方共識未定</option>
                     <option value="廠商因素">廠商因素</option>
+                    <option value="外部單位主管確認延遲">外部單位主管確認延遲</option>
                     <option value="其他">其他</option>
                 </select>
             </div>
@@ -701,13 +704,16 @@
             
             <div v-if="showDelayReasonModal" class="fixed inset-0 z-[9999] bg-red-900/50 backdrop-blur-sm flex items-center justify-center fade-in"><div class="bg-white w-[400px] rounded-2xl shadow-2xl p-8 space-y-5 border-t-4" :class="modalMode.includes('abort')?'border-red-600':'border-orange-500'"><h3 class="font-bold text-xl" :class="modalMode.includes('abort')?'text-red-600':'text-orange-600'">{{ modalTitle }}</h3><p class="text-sm text-slate-600">請填寫原因與備註以完成操作。</p>
                 <select v-model="delayForm.reason" class="w-full border rounded-lg px-3 py-2">
-                    <option value="人力不足">人力不足</option>
-                    <option value="客戶端延遲">客戶端延遲</option>
+                    <option value="外部單位取消需求（中止用）">外部單位取消需求（中止用）</option>
+                    <option value="專案做法變更（中止用）">專案做法變更（中止用）</option>
                     <option value="需求變更">需求變更</option>
-                    <option value="技術瓶頸">技術瓶頸</option>
+                    <option value="需求不確定">需求不確定</option>
+                    <option value="溝通成本高">溝通成本高</option>
+                    <option value="人力不足">人力不足</option>
+                    <option value="低估工作量">低估工作量</option>
+                    <option value="多方共識未定">多方共識未定</option>
                     <option value="廠商因素">廠商因素</option>
-                    <option value="策略調整">策略調整 (中止用)</option>
-                    <option value="預算取消">預算取消 (中止用)</option>
+                    <option value="外部單位主管確認延遲">外部單位主管確認延遲</option>
                     <option value="其他">其他</option>
                 </select>
                 <textarea v-model="delayForm.remark" class="w-full border rounded-lg px-3 py-2 h-20" placeholder="備註說明..."></textarea><div class="flex justify-end space-x-3 pt-4"><button @click="showDelayReasonModal=false" class="px-4 text-slate-500">取消</button><button @click="submitDelayModal" :disabled="isSubmitting" :class="modalMode.includes('abort')?'bg-red-600':'bg-orange-500'" class="text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50">確認</button></div></div></div>
