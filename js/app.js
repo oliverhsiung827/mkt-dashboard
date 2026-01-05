@@ -173,7 +173,7 @@ const app = createApp({
           icon: "fas fa-chart-line",
         },
       ],
-      isCommonLinksExpanded: true,
+      isCommonLinksExpanded: false,
     };
   },
   async mounted() {
