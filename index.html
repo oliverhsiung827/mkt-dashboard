@@ -161,7 +161,7 @@
                         </div>
                         <div class="bg-white rounded-xl shadow-sm border border-slate-200 mb-8 w-full overflow-hidden">
                             <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center"><h3 class="font-bold text-slate-700"><i class="fas fa-satellite-dish mr-2 text-indigo-500"></i> 執行監控 </h3><button v-if="filterStatus!=='all'" @click="filterStatus='all'" class="text-xs text-indigo-600 hover:underline">顯示全部</button></div>
-                            <div class="overflow-x-auto w-full"><table class="w-full text-sm text-left"><thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b"><tr><th class="px-6 py-3">品牌 / 專案 / 分支</th><th class="px-6 py-3">負責人</th><th class="px-6 py-3">目前處理 / 滯留</th><th class="px-6 py-3 text-center">截止日</th><th class="px-6 py-3 text-center">實際工時</th><th class="px-6 py-3">狀態</th></tr></thead><tbody class="divide-y divide-slate-100"><tr v-if="filteredMonitorList.length===0"><td colspan="6" class="px-6 py-4 text-center text-slate-400">尚無資料</td></tr><tr v-for="item in filteredMonitorList" :key="item.branch.id" class="hover:bg-slate-50 transition cursor-pointer" @click="selectSubProject(item.branch, item.parent)"><td class="px-6 py-3"><div class="text-xs text-slate-400 flex items-center gap-1 mb-1"><span class="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold">{{ item?.brand?.name || 'Unknown' }}</span><i class="fas fa-chevron-right text-[8px]"></i><span>{{ item?.parent?.title || 'Unknown' }}</span></div><div class="font-bold text-slate-800 pl-1">{{ item.branch.title }}</div></td><td class="px-6 py-3 flex items-center"><div class="w-6 h-6 rounded bg-slate-200 text-slate-600 text-xs flex justify-center items-center mr-2">{{ (item.branch.assignee || 'U').substring(0,1) }}</div>{{ item.branch.assignee }}</td><td class="px-6 py-3"><div class="flex flex-col"><span class="font-bold text-indigo-700 text-xs">{{ item.branch.currentHandler || item.branch.assignee }}</span><span class="text-[10px] text-slate-400 mt-0.5">滯留 {{ getDaysHeld(item.branch.lastHandoffDate) }} 天</span></div></td><td class="px-6 py-3 text-center font-mono" :class="getDateStyle(item.branch.endDate)">{{ item.branch.endDate||'--' }}</td><td class="px-6 py-3 text-center font-bold text-blue-600">{{ calcSubProjectHours(item.branch) }} h</td><td class="px-6 py-3"><span v-if="getProjectHealth(item.branch).type === 'delay'" class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">🔴 延遲 {{ getProjectHealth(item.branch).days }} 天</span><span v-else-if="getProjectHealth(item.branch).type === 'lag'" class="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-bold">🟠 落後 {{ getProjectHealth(item.branch).days }} 天</span><span v-else class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold">🟢 正常</span></td></tr></tbody></table></div>
+                            <div class="overflow-x-auto w-full"><table class="w-full text-sm text-left"><thead class="text-xs text-slate-500 uppercase bg-slate-50 border-b"><tr><th class="px-6 py-3">品牌 / 專案 / 分支</th><th class="px-6 py-3">負責人</th><th class="px-6 py-3">目前處理 / 滯留</th><th class="px-6 py-3 text-center">截止日</th><th class="px-6 py-3 text-center">實際工時</th><th class="px-6 py-3">狀態</th></tr></thead><tbody class="divide-y divide-slate-100"><tr v-if="filteredMonitorList.length===0"><td colspan="6" class="px-6 py-4 text-center text-slate-400">尚無資料</td></tr><tr v-for="item in filteredMonitorList" :key="item.branch.id" class="hover:bg-slate-50 transition cursor-pointer" @click="selectSubProject(item.branch, item.parent)"><td class="px-6 py-3"><div class="text-xs text-slate-400 flex items-center gap-1 mb-1"><span class="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold">{{ item?.brand?.name || 'Unknown' }}</span><i class="fas fa-chevron-right text-[8px]"></i><span>{{ item?.parent?.title || 'Unknown' }}</span></div><div class="font-bold text-slate-800 pl-1">{{ item.branch.title }}</div></td><td class="px-6 py-3 flex items-center"><div class="w-6 h-6 rounded bg-slate-200 text-slate-600 text-xs flex justify-center items-center mr-2">{{ (item.branch.assignee || 'U').substring(0,1) }}</div>{{ item.branch.assignee }}</td><td class="px-6 py-3"><div class="flex flex-col"><span class="font-bold text-indigo-700 text-xs">{{ item.branch.currentHandler || item.branch.assignee }}</span><span class="text-[10px] text-slate-400 mt-0.5">滯留 {{ getDaysHeld(item.branch) }} 天</span></div></td><td class="px-6 py-3 text-center font-mono" :class="getDateStyle(item.branch.endDate)">{{ item.branch.endDate||'--' }}</td><td class="px-6 py-3 text-center font-bold text-blue-600">{{ calcSubProjectHours(item.branch) }} h</td><td class="px-6 py-3"><span v-if="getProjectHealth(item.branch).type === 'delay'" class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">🔴 延遲 {{ getProjectHealth(item.branch).days }} 天</span><span v-else-if="getProjectHealth(item.branch).type === 'lag'" class="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-bold">🟠 落後 {{ getProjectHealth(item.branch).days }} 天</span><span v-else class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold">🟢 正常</span></td></tr></tbody></table></div>
                         </div>
                         <div class="bg-white rounded-xl shadow-sm border border-slate-200 w-full overflow-hidden">
                             <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50"><h3 class="font-bold text-slate-700"><i class="fas fa-users-cog mr-2 text-indigo-500"></i> 人員產能 (當前狀態)</h3></div>
@@ -495,11 +495,38 @@
             </div>
             <div class="text-right">
                 <div class="text-3xl font-bold text-blue-600">{{ calcSubProjectHours(currentSubProject) }} <span class="text-sm text-slate-400 font-medium">hours</span></div>
-                <div class="flex gap-2 mt-2 justify-end" v-if="canEditSubProject && (currentSubProject.status === 'in_progress' || currentSubProject.status === 'setup')">
-                    <button v-if="currentSubProject.status === 'in_progress'" @click="openEditBranchModal" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded font-bold transition flex items-center">
+<div class="flex gap-2 mt-2 justify-end">
+                    
+
+                    <template v-if="currentSubProject.status === 'in_progress' && currentUser.name === currentSubProject.currentHandler && !currentSubProject.isWaitingForManager">
+                        
+                        <button @click="startManagerCheck" 
+                                class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded font-bold transition flex items-center shadow-sm">
+                            <i class="fas fa-user-tie mr-1"></i> 提交主管確認
+                        </button>
+                        
+                        <button @click="openEventModal" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded font-bold transition flex items-center">
+                            <i class="fas fa-check mr-1"></i> 結案
+                        </button>
+                    </template>
+
+                    <template v-if="currentSubProject.isWaitingForManager">
+                        <div class="flex items-center gap-2 animate-pulse">
+                            <span class="text-xs font-bold text-orange-600 bg-orange-50 px-3 py-1.5 rounded border border-orange-100">
+                                <i class="fas fa-clock mr-1"></i> 等待主管確認中... (暫停計時)
+                            </span>
+                        </div>
+                        <button @click="finishManagerCheck" 
+                                class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded font-bold transition flex items-center shadow-sm">
+                            <i class="fas fa-check-double mr-1"></i> 主管已確認/回覆
+                        </button>
+                    </template>
+
+                    <button v-if="currentSubProject.status === 'in_progress' && canEditSubProject" @click="openEditBranchModal" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded font-bold transition flex items-center">
                         <i class="fas fa-cog mr-1"></i> 設定
                     </button>
-                    <button v-if="currentSubProject.status === 'in_progress'" @click="openSubAbortModal" class="text-xs bg-slate-500 hover:bg-slate-600 text-white px-3 py-1.5 rounded transition">
+                    
+                    <button v-if="currentSubProject.status === 'in_progress' && canEditSubProject" @click="openSubAbortModal" class="text-xs bg-slate-500 hover:bg-slate-600 text-white px-3 py-1.5 rounded transition">
                         ⛔ 中止專案
                     </button>
                 </div>
@@ -665,8 +692,123 @@
     </div>
 </div>
 
-            <div v-if="showMemberDetailModal" class="fixed inset-0 z-[9999] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center fade-in"><div class="bg-white w-[900px] h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden"><div class="px-8 py-6 border-b flex justify-between items-center bg-slate-50"><div><h3 class="font-bold text-2xl text-slate-800 flex items-center"><div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center text-lg mr-3">{{ currentMemberDetail.name.substring(0,1) }}</div>{{ currentMemberDetail.name }} <span class="text-sm font-normal text-slate-500 ml-2">({{ teamMap[currentMemberDetail.team] }} • {{ roleMap[currentMemberDetail.role] }})</span></h3></div><div class="flex items-center gap-3"><span class="text-xs font-bold text-slate-400">年份篩選:</span><select v-model="memberDetailYear" @change="recalcMemberDetail" class="border border-slate-300 rounded px-2 py-1 text-sm"><option value="all">全部</option><option v-for="y in [2023,2024,2025,2026]" :value="y">{{ y }}年</option></select><button @click="showMemberDetailModal=false" class="text-slate-400 hover:text-slate-600 ml-2"><i class="fas fa-times text-xl"></i></button></div></div><div class="flex-1 overflow-y-auto p-8 bg-slate-50/50"><div class="grid grid-cols-1 md:grid-cols-2 gap-8 h-full"><div class="space-y-6 flex flex-col h-full"><div class="bg-white rounded-xl border border-slate-200 overflow-hidden flex-1 flex flex-col"><div class="px-4 py-3 bg-red-50 border-b border-red-100 text-xs font-bold text-red-800 flex justify-between"><span>🔴 手上待辦清單 (Handling)</span><span>{{ memberDetailData.active.count }} 案</span></div><div class="flex-1 overflow-y-auto"><div v-if="memberDetailData.active.tasks.length===0" class="p-4 text-center text-slate-400 text-xs">目前無待辦</div><div v-for="t in memberDetailData.active.tasks" :key="t.sub.id" class="p-3 border-b last:border-0 hover:bg-slate-50 flex justify-between items-center"><div class="truncate pr-2"><div class="text-[10px] text-slate-400">{{ t.parent.title }}</div><div class="font-bold text-sm text-slate-700 truncate">{{ t.sub.title }}</div></div><div class="text-right flex flex-col items-end"><span class="text-xs font-bold text-indigo-600">{{ t.holdDays }} 天</span><span class="text-[10px] text-slate-400">滯留</span></div></div></div></div><div class="bg-white rounded-xl border border-slate-200 overflow-hidden flex-1 flex flex-col"><div class="px-4 py-3 bg-indigo-50 border-b border-indigo-100 text-xs font-bold text-indigo-800 flex justify-between"><span>🔵 負責專案列表 (Owned) <span v-if="memberDetailYear!=='all'">({{ memberDetailYear }})</span></span><span>{{ memberDetailData.overall.total }} 案</span></div><div class="flex-1 overflow-y-auto"><div v-if="memberDetailData.overall.projects.length===0" class="p-4 text-center text-slate-400 text-xs">無負責專案</div><div v-for="p in memberDetailData.overall.projects" :key="p.sub.id" class="p-3 border-b last:border-0 hover:bg-slate-50 flex justify-between items-center text-xs"><div class="truncate pr-2 font-bold text-slate-700">{{ p.sub.title }}</div><div><span :class="statusBadge(p.sub.status)" class="px-1.5 py-0.5 rounded text-[10px]">{{ statusMap[p.sub.status] }}</span></div></div></div></div></div><div class="space-y-6"><div><h4 class="font-bold text-lg text-slate-700 mb-3">執行風險指標</h4><div class="grid grid-cols-2 gap-4"><div class="bg-white p-5 rounded-xl border border-red-100 shadow-sm"><div class="text-xs text-slate-500 mb-1">平均滯留</div><div class="text-3xl font-bold text-red-600">{{ memberDetailData.active.avgHoldDays }} <span class="text-sm font-normal text-slate-400">天</span></div></div><div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm"><div class="text-xs text-slate-500 mb-1">最大滯留</div><div class="text-3xl font-bold text-slate-800">{{ memberDetailData.active.maxHold || 0 }} <span class="text-sm font-normal text-slate-400">天</span></div></div></div></div><div><h4 class="font-bold text-lg text-slate-700 mb-3">歷史績效指標 <span v-if="memberDetailYear!=='all'" class="text-xs bg-slate-200 px-2 py-0.5 rounded">{{ memberDetailYear }}</span></h4><div class="grid grid-cols-2 gap-4"><div class="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm"><div class="text-xs text-slate-500 mb-1">延遲率</div><div class="text-2xl font-bold text-indigo-600">{{ memberDetailData.overall.delayRate }}%</div></div><div class="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm"><div class="text-xs text-slate-500 mb-1">總延遲天數</div><div class="text-2xl font-bold text-pink-600">{{ memberDetailData.overall.totalDelayDays }} <span class="text-xs text-slate-400">天</span></div></div></div></div><div class="bg-white rounded-xl border border-slate-200 overflow-hidden"><div class="px-4 py-3 bg-slate-50 border-b text-xs font-bold text-slate-500">主要延遲原因 (Top 5)</div><div class="p-4 space-y-3"><div v-if="memberDetailData.overall.reasons.length===0" class="text-center text-slate-400 text-xs">尚無延遲紀錄</div><div v-for="r in memberDetailData.overall.reasons.slice(0,5)" :key="r.name" class="flex items-center text-sm"><span class="w-24 font-bold text-slate-600 truncate">{{ r.name }}</span><div class="flex-1 h-2 bg-slate-100 rounded-full mx-3"><div class="h-2 bg-indigo-500 rounded-full" :style="{width: r.percent+'%'}"></div></div><span class="font-bold text-indigo-600">{{ r.count }}</span></div></div></div></div></div></div></div></div>
-            
+<div v-if="showMemberDetailModal" class="fixed inset-0 z-[9999] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center fade-in">
+    <div class="bg-white w-[900px] h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        <div class="px-8 py-6 border-b flex justify-between items-center bg-slate-50">
+            <div>
+                <h3 class="font-bold text-2xl text-slate-800 flex items-center">
+                    <div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center text-lg mr-3">
+                        {{ currentMemberDetail.name.substring(0,1) }}
+                    </div>
+                    {{ currentMemberDetail.name }} 
+                    <span class="text-sm font-normal text-slate-500 ml-2">({{ teamMap[currentMemberDetail.team] }} • {{ roleMap[currentMemberDetail.role] }})</span>
+                </h3>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-xs font-bold text-slate-400">年份篩選:</span>
+                <select v-model="memberDetailYear" @change="recalcMemberDetail" class="border border-slate-300 rounded px-2 py-1 text-sm outline-none focus:border-indigo-500">
+                    <option value="all">全部</option>
+                    <option v-for="y in [2023,2024,2025,2026]" :value="y">{{ y }}年</option>
+                </select>
+                <button @click="showMemberDetailModal=false" class="text-slate-400 hover:text-slate-600 ml-2 transition">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-8 bg-slate-50/50">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 h-full">
+                
+                <div class="space-y-6 flex flex-col h-full">
+                    
+                    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden flex-1 flex flex-col shadow-sm">
+                        <div class="px-4 py-3 bg-red-50 border-b border-red-100 text-xs font-bold text-red-800 flex justify-between">
+                            <span>🔴 手上待辦清單 (Handling)</span>
+                            <span>{{ memberDetailData.active.count }} 案</span>
+                        </div>
+                        <div class="flex-1 overflow-y-auto">
+                            <div v-if="memberDetailData.active.tasks.length===0" class="p-4 text-center text-slate-400 text-xs italic">目前無待辦</div>
+                            
+                            <div v-for="t in memberDetailData.active.tasks" :key="t.sub.id" 
+                                 @click="selectSubProject(t.sub, t.parent); showMemberDetailModal=false"
+                                 class="p-3 border-b last:border-0 hover:bg-indigo-50 cursor-pointer transition flex justify-between items-center group">
+                                <div class="truncate pr-2">
+                                    <div class="text-[10px] text-slate-400 group-hover:text-indigo-400">{{ t.parent.title }}</div>
+                                    <div class="font-bold text-sm text-slate-700 truncate group-hover:text-indigo-700 transition">{{ t.sub.title }}</div>
+                                </div>
+                                <div class="text-right flex flex-col items-end flex-shrink-0">
+                                    <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-1.5 rounded group-hover:bg-white">{{ t.holdDays }} 天</span>
+                                    <span class="text-[10px] text-slate-400 mt-0.5">滯留</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden flex-1 flex flex-col shadow-sm">
+                        <div class="px-4 py-3 bg-indigo-50 border-b border-indigo-100 text-xs font-bold text-indigo-800 flex justify-between">
+                            <span>🔵 負責專案列表 (Owned) <span v-if="memberDetailYear!=='all'">({{ memberDetailYear }})</span></span>
+                            <span>{{ memberDetailData.overall.total }} 案</span>
+                        </div>
+                        <div class="flex-1 overflow-y-auto">
+                            <div v-if="memberDetailData.overall.projects.length===0" class="p-4 text-center text-slate-400 text-xs italic">無負責專案</div>
+                            
+                            <div v-for="p in memberDetailData.overall.projects" :key="p.sub.id" 
+                                 @click="selectSubProject(p.sub, p.parent); showMemberDetailModal=false"
+                                 class="p-3 border-b last:border-0 hover:bg-indigo-50 cursor-pointer transition flex justify-between items-center text-xs group">
+                                <div class="truncate pr-2 font-bold text-slate-700 group-hover:text-indigo-700 transition">{{ p.sub.title }}</div>
+                                <div>
+                                    <span :class="statusBadge(p.sub.status)" class="px-1.5 py-0.5 rounded text-[10px]">{{ statusMap[p.sub.status] }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <div>
+                        <h4 class="font-bold text-lg text-slate-700 mb-3">執行風險指標</h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-white p-5 rounded-xl border border-red-100 shadow-sm">
+                                <div class="text-xs text-slate-500 mb-1">平均滯留</div>
+                                <div class="text-3xl font-bold text-red-600">{{ memberDetailData.active.avgHoldDays }} <span class="text-sm font-normal text-slate-400">天</span></div>
+                            </div>
+                            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                                <div class="text-xs text-slate-500 mb-1">最大滯留</div>
+                                <div class="text-3xl font-bold text-slate-800">{{ memberDetailData.active.maxHold || 0 }} <span class="text-sm font-normal text-slate-400">天</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-lg text-slate-700 mb-3">歷史績效指標 <span v-if="memberDetailYear!=='all'" class="text-xs bg-slate-200 px-2 py-0.5 rounded">{{ memberDetailYear }}</span></h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm">
+                                <div class="text-xs text-slate-500 mb-1">延遲率</div>
+                                <div class="text-2xl font-bold text-indigo-600">{{ memberDetailData.overall.delayRate }}%</div>
+                            </div>
+                            <div class="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm">
+                                <div class="text-xs text-slate-500 mb-1">總延遲天數</div>
+                                <div class="text-2xl font-bold text-pink-600">{{ memberDetailData.overall.totalDelayDays }} <span class="text-xs text-slate-400">天</span></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                        <div class="px-4 py-3 bg-slate-50 border-b text-xs font-bold text-slate-500">主要延遲原因 (Top 5)</div>
+                        <div class="p-4 space-y-3">
+                            <div v-if="memberDetailData.overall.reasons.length===0" class="text-center text-slate-400 text-xs italic">尚無延遲紀錄</div>
+                            <div v-for="r in memberDetailData.overall.reasons.slice(0,5)" :key="r.name" class="flex items-center text-sm">
+                                <span class="w-24 font-bold text-slate-600 truncate" :title="r.name">{{ r.name }}</span>
+                                <div class="flex-1 h-2 bg-slate-100 rounded-full mx-3">
+                                    <div class="h-2 bg-indigo-500 rounded-full" :style="{width: r.percent+'%'}"></div>
+                                </div>
+                                <span class="font-bold text-indigo-600">{{ r.count }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>            
             <div v-if="showEditBranchModal" class="fixed inset-0 z-[9999] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center fade-in"><div class="bg-white w-[500px] rounded-2xl shadow-2xl p-8 flex flex-col max-h-[90vh]"><h3 class="font-bold text-xl text-slate-800 mb-6">編輯子專案設定</h3><div class="space-y-4 flex-1 overflow-y-auto"><div><label class="text-xs font-bold text-slate-500 block mb-1">專案名稱</label><input v-model="editBranchForm.title" class="w-full border rounded-lg px-3 py-2"></div>
 <div class="grid grid-cols-2 gap-4">
     <div>

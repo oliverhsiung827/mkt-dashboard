@@ -7,7 +7,7 @@ import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.js";
 const DataFactory = {
     createProject: (input, user) => ({
         brandId: input.brandId || '',
-        title: input.title ? `[${input.startDate || 'NoDate'}] ${input.title}` : 'Untitled Project',
+        title: input.title ? `【${input.startDate || 'NoDate'}】${input.title}` : 'Untitled Project',
         startDate: input.startDate || new Date().toISOString().split('T')[0],
         endDate: input.endDate || '',
         owner: user?.name || 'Unknown',
@@ -730,7 +730,39 @@ const app = createApp({
         getMilestoneName(mid) { return this.currentSubProject?.milestones?.find(m => m.id === mid)?.title || 'Unknown'; },
         isMilestoneOverdue(ms) { if (ms.isCompleted) return false; if(!ms.date) return false; return new Date(ms.date) < new Date().setHours(0,0,0,0); },
         getDaysLate(d) { if(!d) return 0; return Math.ceil((new Date() - new Date(d)) / (1000 * 60 * 60 * 24)); },
-        getDaysHeld(d) { if(!d) return 0; const today = new Date(); today.setHours(0,0,0,0); const handoff = new Date(d); handoff.setHours(0,0,0,0); return Math.floor((today - handoff) / (1000 * 60 * 60 * 24)); },
+        getDaysHeld(input) {
+            // 支援傳入物件或日期字串
+            let dStr = input;
+            
+            // 【核心修改】如果傳入的是專案物件 (Object)，檢查是否暫停中
+            if (typeof input === 'object' && input !== null) {
+                // 如果正在等待主管確認，回傳 0 (暫停計時)
+                if (input.isWaitingForManager) return 0;
+                // 否則取出最後交接日來計算
+                dStr = input.lastHandoffDate;
+            }
+            
+            if(!dStr) return 0;
+            
+            // 計算邏輯：扣除六日
+            const start = new Date(dStr);
+            const end = new Date();
+            start.setHours(0,0,0,0);
+            end.setHours(0,0,0,0);
+            
+            if (start >= end) return 0;
+        
+            let count = 0;
+            let curr = new Date(start);
+            while (curr < end) {
+                curr.setDate(curr.getDate() + 1);
+                const dayOfWeek = curr.getDay();
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                    count++;
+                }
+            }
+            return count;
+        },
         getSubProjectDelayDays(sp) { 
             if(sp.status === 'completed') return sp.finalDelayDays || 0; 
             if (!sp.endDate) return 0; 
@@ -770,7 +802,87 @@ const app = createApp({
         getDeadlineStatus(dateStr) { if (!dateStr) return { status: 'normal', label: '未定', days: 0 }; const today = new Date(); today.setHours(0,0,0,0); const target = new Date(dateStr); target.setHours(0,0,0,0); const diffTime = target - today; const diffDays = Math.floor(diffTime / 86400000); if (diffDays < 0) return { status: 'overdue', label: `延遲 ${Math.abs(diffDays)} 天`, days: Math.abs(diffDays) }; if (diffDays <= 7) return { status: 'warning', label: `剩 ${diffDays} 天`, days: diffDays }; return { status: 'normal', label: `剩 ${diffDays} 天`, days: diffDays }; },
         getDateStyle(dateStr) { const s = this.getDeadlineStatus(dateStr); if(s.status === 'overdue') return 'text-red-600 font-bold'; if(s.status === 'warning') return 'text-yellow-600 font-bold'; return 'text-slate-500'; },
         getBranchProgress(branch) { const total = branch.milestones?.length || 0; if (total === 0) return { percent: 0 }; const done = branch.milestones.filter(m => m.isCompleted).length; return { percent: Math.round((done / total) * 100) }; },
-        branchHasDelay(branch) { return this.getSubProjectDelayDays(branch) > 0; }
+        branchHasDelay(branch) { return this.getSubProjectDelayDays(branch) > 0; },
+        
+        // --- 功能 1: 主管確認 (暫停計時) ---
+        async startManagerCheck() {
+            if (!confirm("確定要提交線下確認嗎？\n(這將會在日誌中記錄時間點，並暫停計算您的滯留天數)")) return;
+        
+            this.isSubmitting = true;
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                
+                // 1. 新增日誌
+                const logEvent = {
+                    id: 'ev' + Date.now(),
+                    date: today,
+                    hours: 0, 
+                    worker: this.currentUser.name,
+                    description: '🕒 [開始] 提交主管線下確認 (系統暫停計時)',
+                    handoffTo: null 
+                };
+                
+                if (!this.currentSubProject.events) this.currentSubProject.events = [];
+                this.currentSubProject.events.push(logEvent);
+        
+                // 2. 更新資料庫
+                await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), { 
+                    events: this.currentSubProject.events,
+                    isWaitingForManager: true, // 開啟等待旗標
+                    managerCheckStartDate: today 
+                });
+        
+                // 3. 更新本地畫面
+                this.currentSubProject.isWaitingForManager = true;
+                this.currentSubProject.managerCheckStartDate = today;
+        
+            } catch(e) { console.error(e); alert("操作失敗"); } 
+            finally { this.isSubmitting = false; }
+        },
+        
+        async finishManagerCheck() {
+            this.isSubmitting = true;
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const startDate = this.currentSubProject.managerCheckStartDate || today;
+                
+                // 計算耗時 (包含六日)
+                const diffTime = Math.abs(new Date(today) - new Date(startDate));
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+                const durationText = diffDays === 0 ? "同日完成" : `${diffDays} 天`;
+        
+                // 1. 新增日誌
+                const logEvent = {
+                    id: 'ev' + Date.now(),
+                    date: today,
+                    hours: 0, 
+                    worker: this.currentUser.name,
+                    description: `✅ [結束] 主管確認完成 (耗時: ${durationText})`,
+                    handoffTo: null
+                };
+        
+                if (!this.currentSubProject.events) this.currentSubProject.events = [];
+                this.currentSubProject.events.push(logEvent);
+        
+                // 2. 更新資料庫
+                await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), { 
+                    events: this.currentSubProject.events,
+                    isWaitingForManager: false, // 關閉等待旗標
+                    managerCheckStartDate: null,
+                    lastHandoffDate: today // 重置滯留天數起算點 (球回到自己手上重算)
+                });
+        
+                // 3. 更新本地畫面
+                this.currentSubProject.isWaitingForManager = false;
+                this.currentSubProject.managerCheckStartDate = null;
+                this.currentSubProject.lastHandoffDate = today;
+        
+                alert(`確認程序已記錄！共耗時：${durationText}`);
+        
+            } catch(e) { console.error(e); alert("操作失敗"); } 
+            finally { this.isSubmitting = false; }
+        },
+        
     }
 });
 
