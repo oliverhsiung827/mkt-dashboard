@@ -54,6 +54,7 @@ const DataFactory = {
 const app = createApp({
   data() {
     return {
+      isSidebarCollapsed: false,
       userParams: null,
       authForm: {
         email: "",
@@ -144,6 +145,35 @@ const app = createApp({
       // 快速檢視視窗
       showQuickViewModal: false,
       quickViewData: null,
+
+      commonLinks: [
+        {
+          title: "棉花糖人資系統",
+          url: "https://att.upyoung.com.tw:4431/",
+          icon: "fas fa-user-clock",
+        },
+        {
+          title: "BPM簽呈系統",
+          url: "https://bpm.upyoung.com.tw:8011/YZSoft/login/2020/?ReturnUrl=%2f",
+          icon: "fas fa-file-signature",
+        },
+        {
+          title: "上洋共用資料夾",
+          url: "https://drive.google.com/drive/folders/1PLz8UKxUkG2EGctAJQ7GTm3VfgFm4P7G",
+          icon: "fab fa-google-drive",
+        },
+        {
+          title: "設計需求表",
+          url: "https://docs.google.com/spreadsheets/d/1Ioqg6VDWknm-6gbF6CfcShI0d1nu9g2yfbfjSg46_BQ/edit#gid=0",
+          icon: "fas fa-palette",
+        },
+        {
+          title: "2025總預算 Forecast",
+          url: "https://docs.google.com/spreadsheets/d/1dgrFSVGK5CzW6Sozb6WfeapXV4CVzsgi/edit?gid=2012342468#gid=2012342468",
+          icon: "fas fa-chart-line",
+        },
+      ],
+      isCommonLinksExpanded: true,
     };
   },
   async mounted() {

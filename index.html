@@ -39,12 +39,12 @@
                         sans: ['Inter', 'sans-serif']
                     },
                     colors: {
-                        // 上洋企業標準色
                         upyoung: {
                             blue: '#004098',
-                            yellow: '#fabe00'
+                            yellow: '#fabe00',
+                            // [New] 專門給文字用的深金色，解決看不清楚的問題
+                            darkYellow: '#B45309'
                         },
-                        // 主色系 (維持藍色，作為結構與按鈕)
                         indigo: {
                             50: '#eff6ff',
                             100: '#dbeafe',
@@ -52,24 +52,20 @@
                             300: '#93c5fd',
                             400: '#60a5fa',
                             500: '#3b82f6',
-                            600: '#004098', // 上洋藍 (按鈕背景)
-                            700: '#00337a', // Hover 深藍
+                            600: '#004098',
+                            700: '#00337a',
                             800: '#1e40af',
                             900: '#1e3a8a',
                         },
-                        // ★★★ 關鍵修改：將強調色系直接換成「上洋黃」 ★★★
-                        // 這會讓進度條、燈號、重點文字變成金黃色
+                        // 優化進度條與標籤顏色
                         emerald: {
-                            500: '#fabe00', // 原本的綠色進度條 -> 變金黃色
+                            100: '#fffbeb', // 淺黃底 (Badge背景)
+                            500: '#fabe00', // 亮黃 (進度條)
                             600: '#e0a800',
+                            700: '#B45309', // [優化] 深金棕色 (Badge文字)，取代原本看不清楚的黃色
                         },
-                        blue: {
-                            500: '#004098',
-                            600: '#00337a'
-                        },
-                        // 將通知紅點改為金黃色
                         red: {
-                            500: '#fabe00',
+                            500: '#fabe00', // 通知紅點改黃
                         }
                     }
                 }
@@ -202,40 +198,94 @@
                 <div v-if="showMobileSidebar" @click="showMobileSidebar = false"
                     class="fixed inset-0 bg-slate-900/80 z-30 md:hidden fade-in"></div>
 
-                <div
-                    :class="['bg-slate-900 text-slate-300 flex flex-col shadow-inner flex-shrink-0 h-full border-r border-slate-800 transition-transform duration-300 ease-in-out md:translate-x-0 md:relative fixed z-40 w-64', showMobileSidebar ? 'translate-x-0' : '-translate-x-full']">
-                    <div class="flex-1 overflow-y-auto no-scrollbar py-4">
+                <div :class="['bg-slate-900 text-slate-300 flex flex-col shadow-inner flex-shrink-0 h-full border-r border-slate-800 transition-all duration-300 ease-in-out z-40', 
+    showMobileSidebar ? 'translate-x-0 fixed w-64' : '-translate-x-full fixed md:relative md:translate-x-0',
+    isSidebarCollapsed ? 'md:w-16' : 'md:w-64' ]">
+
+                    <div class="flex-1 overflow-y-auto no-scrollbar py-4 flex flex-col">
                         <div class="px-3 mb-4 space-y-1">
                             <button @click="currentView = 'dashboard'; filterStatus = 'all'; showMobileSidebar = false"
-                                :class="['w-full text-left px-3 py-2.5 rounded-lg flex items-center transition', currentView === 'dashboard' ? 'bg-indigo-600 text-white' : 'hover:bg-slate-800']"><i
-                                    class="fas fa-chart-pie w-6 opacity-70"></i> 戰情儀表板</button>
+                                :title="isSidebarCollapsed ? '戰情儀表板' : ''" :class="['w-full text-left py-2.5 rounded-lg flex items-center transition relative group', 
+                    currentView === 'dashboard' ? 'bg-upyoung-blue text-white' : 'hover:bg-slate-800',
+                    isSidebarCollapsed ? 'justify-center px-0' : 'px-3']">
+                                <i class="fas fa-chart-pie text-lg flex-shrink-0"
+                                    :class="isSidebarCollapsed ? '' : 'w-6 opacity-70'"></i>
+                                <span class="whitespace-nowrap transition-opacity duration-200"
+                                    :class="isSidebarCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100 ml-2'">戰情儀表板</span>
+                            </button>
+
                             <button @click="currentView = 'history_report'; showMobileSidebar = false"
-                                :class="['w-full text-left px-3 py-2.5 rounded-lg flex items-center transition', currentView === 'history_report' ? 'bg-indigo-600 text-white' : 'hover:bg-slate-800']"><i
-                                    class="fas fa-history w-6 opacity-70"></i> 歷史績效報表</button>
+                                :title="isSidebarCollapsed ? '歷史績效報表' : ''" :class="['w-full text-left py-2.5 rounded-lg flex items-center transition relative group', 
+                    currentView === 'history_report' ? 'bg-upyoung-blue text-white' : 'hover:bg-slate-800',
+                    isSidebarCollapsed ? 'justify-center px-0' : 'px-3']">
+                                <i class="fas fa-history text-lg flex-shrink-0"
+                                    :class="isSidebarCollapsed ? '' : 'w-6 opacity-70'"></i>
+                                <span class="whitespace-nowrap transition-opacity duration-200"
+                                    :class="isSidebarCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100 ml-2'">歷史績效報表</span>
+                            </button>
+
                             <button
                                 @click="currentView = 'my_workspace'; workspaceTab='tasks'; showMobileSidebar = false"
-                                :class="['w-full text-left px-3 py-2.5 rounded-lg flex items-center transition', currentView === 'my_workspace' ? 'bg-indigo-600 text-white' : 'hover:bg-slate-800']"><i
-                                    class="fas fa-tasks w-6 opacity-70"></i> 我的工作區</button>
+                                :title="isSidebarCollapsed ? '我的工作區' : ''" :class="['w-full text-left py-2.5 rounded-lg flex items-center transition relative group', 
+                    currentView === 'my_workspace' ? 'bg-upyoung-blue text-white' : 'hover:bg-slate-800',
+                    isSidebarCollapsed ? 'justify-center px-0' : 'px-3']">
+                                <i class="fas fa-tasks text-lg flex-shrink-0"
+                                    :class="isSidebarCollapsed ? '' : 'w-6 opacity-70'"></i>
+                                <span class="whitespace-nowrap transition-opacity duration-200"
+                                    :class="isSidebarCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100 ml-2'">我的工作區</span>
+                            </button>
                         </div>
-                        <div class="px-3 mb-2">
-                            <div class="relative"><input v-model="sidebarSearch" type="text"
-                                    class="w-full bg-slate-800 border border-slate-700 rounded-lg py-1.5 pl-8 pr-3 text-xs text-slate-300 placeholder-slate-500 outline-none focus:border-indigo-500"
-                                    placeholder="搜尋專案或品牌..."><i
-                                    class="fas fa-search absolute left-2.5 top-2 text-slate-500 text-xs"></i></div>
+                        <div class="px-3 mb-4 pt-4 border-t border-slate-800 mx-2">
+                            <div v-show="!isSidebarCollapsed" @click="isCommonLinksExpanded = !isCommonLinksExpanded"
+                                class="px-2 mb-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider fade-in flex justify-between items-center cursor-pointer hover:text-slate-300 transition select-none">
+                                <span>常用連結</span>
+                                <i
+                                    :class="['fas text-[10px] transition-transform duration-200', isCommonLinksExpanded ? 'fa-chevron-down' : 'fa-chevron-right']"></i>
+                            </div>
+
+                            <div class="space-y-1" v-show="isSidebarCollapsed || isCommonLinksExpanded">
+                                <a v-for="link in commonLinks" :key="link.title" :href="link.url" target="_blank"
+                                    :title="isSidebarCollapsed ? link.title : ''" :class="['w-full text-left py-2 rounded-lg flex items-center transition relative group hover:bg-slate-800 text-slate-400 hover:text-white', 
+                       isSidebarCollapsed ? 'justify-center px-0' : 'px-3']">
+                                    <i
+                                        :class="[link.icon, 'text-lg flex-shrink-0', isSidebarCollapsed ? '' : 'w-6 text-center opacity-70']"></i>
+
+                                    <span class="whitespace-nowrap transition-opacity duration-200 text-sm ml-2"
+                                        :class="isSidebarCollapsed ? 'opacity-0 w-0 hidden' : 'opacity-100'">
+                                        {{ link.title }}
+                                    </span>
+
+                                    <i v-show="!isSidebarCollapsed"
+                                        class="fas fa-external-link-alt text-[10px] absolute right-2 opacity-0 group-hover:opacity-50"></i>
+                                </a>
+                            </div>
                         </div>
-                        <div class="px-2 mt-2">
-                            <div class="flex justify-between items-center px-3 mb-2"><span
-                                    class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">品牌</span><button
-                                    @click="addBrand"
-                                    class="text-slate-500 hover:text-white text-xs bg-slate-800 w-5 h-5 rounded flex items-center justify-center transition"><i
-                                        class="fas fa-plus"></i></button></div>
+
+
+                        <div class="px-3 mb-2" v-show="!isSidebarCollapsed">
+                            <div class="relative">
+                                <input v-model="sidebarSearch" type="text"
+                                    class="w-full bg-slate-800 border border-slate-700 rounded-lg py-1.5 pl-8 pr-3 text-xs text-slate-300 placeholder-slate-500 outline-none focus:border-upyoung-yellow"
+                                    placeholder="搜尋專案...">
+                                <i class="fas fa-search absolute left-2.5 top-2 text-slate-500 text-xs"></i>
+                            </div>
+                        </div>
+
+                        <div class="px-2 mt-2 flex-1 overflow-y-auto no-scrollbar" v-show="!isSidebarCollapsed">
+                            <div class="flex justify-between items-center px-3 mb-2">
+                                <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">品牌專案</span>
+                                <button @click="addBrand"
+                                    class="text-slate-500 hover:text-white text-xs bg-slate-800 w-5 h-5 rounded flex items-center justify-center transition">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
                             <div v-for="brand in visibleBrands" :key="brand.id" class="mb-2">
                                 <div @click="toggleBrand(brand.id)"
                                     class="px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-white cursor-pointer flex items-center group transition hover:bg-slate-800 rounded">
                                     <i
-                                        :class="['fas mr-2 text-[10px] w-3 transition-transform', isBrandExpanded(brand.id) ? 'fa-chevron-down' : 'fa-chevron-right']"></i><span
-                                        class="flex-1 truncate">{{ brand.name }}</span><button
-                                        @click.stop="openProjectModal(brand.id)"
+                                        :class="['fas mr-2 text-[10px] w-3 transition-transform', isBrandExpanded(brand.id) ? 'fa-chevron-down' : 'fa-chevron-right']"></i>
+                                    <span class="flex-1 truncate">{{ brand.name }}</span>
+                                    <button @click.stop="openProjectModal(brand.id)"
                                         class="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-white transition px-1"
                                         title="開立專案">+</button>
                                 </div>
@@ -248,17 +298,12 @@
                                                     :class="['fas fa-chevron-right text-[10px] w-4 transition mr-1', proj.expanded ? 'rotate-90' : '']"></i>
                                                 <span class="truncate">{{ proj.title }}</span>
                                             </div>
-                                            <button @click.stop="openBranchModal(proj.id)"
-                                                class="opacity-0 group-hover:opacity-100 text-[10px] bg-indigo-600 px-1.5 py-0.5 rounded text-white ml-2 hover:bg-indigo-500 transition">
-                                                <i class="fas fa-plus"></i>
-                                            </button>
                                         </div>
-
                                         <div v-if="proj.expanded"
                                             class="ml-4 border-l border-slate-700 pl-2 space-y-0.5 mt-1 mb-2 fade-in">
                                             <div v-for="sp in (getSubsForParent(proj.id))" :key="sp.id"
                                                 @click.stop="selectSubProject(sp, proj)"
-                                                :class="['text-xs cursor-pointer px-3 py-1.5 rounded-md truncate flex justify-between items-center transition hover:bg-slate-800', (currentView === 'sub_project_detail' && currentSubProject?.id === sp.id) ? 'text-indigo-300 bg-slate-800 font-medium' : 'text-slate-500 hover:text-slate-200']">
+                                                :class="['text-xs cursor-pointer px-3 py-1.5 rounded-md truncate transition hover:bg-slate-800', (currentView === 'sub_project_detail' && currentSubProject?.id === sp.id) ? 'text-upyoung-yellow bg-slate-800 font-medium' : 'text-slate-500 hover:text-slate-200']">
                                                 <span class="truncate">{{ sp.title }}</span>
                                             </div>
                                         </div>
@@ -266,30 +311,35 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="p-3 border-t border-slate-800 bg-slate-900/50">
-                        <div @click="showArchived = !showArchived"
-                            class="px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-300 cursor-pointer flex rounded-lg hover:bg-slate-800 transition">
-                            <span><i class="fas fa-archive mr-2"></i> 已歸檔/中止</span><i
-                                :class="['fas transition', showArchived ? 'rotate-180' : '']"></i>
+
+                        <div v-show="isSidebarCollapsed" class="flex-1 flex flex-col items-center pt-4 opacity-50">
+                            <i class="fas fa-ellipsis-h text-slate-600"></i>
                         </div>
-                        <div v-if="showArchived"
-                            class="mt-2 space-y-1 max-h-48 overflow-y-auto bg-slate-800 rounded-lg p-2 border border-slate-700 fade-in">
-                            <div v-for="brand in sortedBrands" :key="'arch-'+brand.id">
-                                <div v-if="getArchivedProjectsByBrand(brand.id).length > 0">
-                                    <div
-                                        class="px-2 py-1 text-[10px] font-bold text-indigo-400 uppercase tracking-wider mt-2 mb-1 border-b border-slate-700">
-                                        {{ brand.name }}</div>
-                                    <div v-for="proj in getArchivedProjectsByBrand(brand.id)" :key="proj.id"
-                                        @click="selectParentProject(proj)"
-                                        class="text-xs text-slate-400 hover:text-white cursor-pointer truncate px-2 py-1 rounded hover:bg-slate-700 flex items-center">
-                                        <i class="fas fa-check-circle text-emerald-500 mr-2"
-                                            v-if="proj.status==='completed'"></i><i class="fas fa-ban text-red-400 mr-2"
-                                            v-else-if="proj.status==='aborted'"></i> {{ proj.title }}
-                                    </div>
-                                </div>
+                    </div>
+
+                    <div class="border-t border-slate-800 bg-slate-900/50 flex flex-col">
+                        <button @click="isSidebarCollapsed = !isSidebarCollapsed"
+                            class="w-full py-3 text-slate-500 hover:text-white hover:bg-slate-800 transition flex items-center justify-center"
+                            :title="isSidebarCollapsed ? '展開側邊欄' : '收起側邊欄'">
+                            <i class="fas" :class="isSidebarCollapsed ? 'fa-chevron-right' : 'fa-chevron-left'"></i>
+                        </button>
+
+                        <div class="p-2 border-t border-slate-800" v-show="!isSidebarCollapsed">
+                            <div @click="showArchived = !showArchived"
+                                class="px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-300 cursor-pointer flex rounded-lg hover:bg-slate-800 transition justify-between">
+                                <span><i class="fas fa-archive mr-2"></i> 已歸檔</span>
+                                <i :class="['fas transition', showArchived ? 'rotate-180' : '']"></i>
+                            </div>
+                            <div v-if="showArchived"
+                                class="mt-2 space-y-1 max-h-32 overflow-y-auto bg-slate-800 rounded-lg p-2 border border-slate-700 fade-in">
                             </div>
                         </div>
+
+                        <button v-show="isSidebarCollapsed" @click="isSidebarCollapsed = false; showArchived = true"
+                            class="py-3 text-slate-500 hover:text-white hover:bg-slate-800 transition flex justify-center"
+                            title="查看歸檔">
+                            <i class="fas fa-archive"></i>
+                        </button>
                     </div>
                 </div>
 
