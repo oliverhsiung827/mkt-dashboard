@@ -286,21 +286,61 @@ const app = createApp({
     getSubsForParent() {
       return (pid) => this.indexedSubsByParent[pid] || [];
     },
+
     myHandledBranches() {
       const list = [];
       this.rawParents.forEach((p) => {
         const subs = this.indexedSubsByParent[p.id] || [];
         const brandName = this.indexedBrandMap[p.brandId] || "Unknown";
         subs.forEach((sp) => {
+          // 1. 篩選：執行中 且 球在自己手上
           if (
             sp.currentHandler === this.currentUser.name &&
             sp.status === "in_progress"
           ) {
-            list.push({ brand: { name: brandName }, parent: p, sub: sp });
+            // 2. [New] 預先計算「當前目標」是什麼
+            let targetDate = sp.endDate || "9999-12-31";
+            let targetLabel = "專案截止";
+            let isMilestone = false;
+
+            if (sp.milestones && sp.milestones.length > 0) {
+              // 排序節點
+              const sorted = [...sp.milestones].sort(
+                (m1, m2) => new Date(m1.date) - new Date(m2.date)
+              );
+              // 找第一個沒完成的
+              const nextMs = sorted.find((m) => !m.isCompleted);
+
+              if (nextMs) {
+                targetDate = nextMs.date;
+                targetLabel = nextMs.title; // 節點名稱
+                isMilestone = true;
+              }
+            }
+
+            // 將計算結果包進物件回傳
+            list.push({
+              brand: { name: brandName },
+              parent: p,
+              sub: sp,
+              // 額外資訊供畫面顯示
+              displayInfo: { targetDate, targetLabel, isMilestone },
+            });
           }
         });
       });
-      return list;
+
+      // 3. 排序：依照剛剛算好的 targetDate
+      return list.sort((a, b) => {
+        const dateA = new Date(a.displayInfo.targetDate);
+        const dateB = new Date(b.displayInfo.targetDate);
+
+        // 日期越近越上面
+        if (dateA.getTime() !== dateB.getTime()) return dateA - dateB;
+
+        // 同一天則比滯留天數
+        return this.getDaysHeld(b.sub) - this.getDaysHeld(a.sub);
+      });
     },
     allSubProjects() {
       const list = [];
@@ -1914,18 +1954,18 @@ const app = createApp({
     },
     // 在 app.js 的 methods: { ... } 裡面加入：
 
-        // [New] 計算特定里程碑的累計工時
-        getMilestoneHours(branch, milestoneId) {
-            if (!branch || !branch.events) return 0;
-            
-            // 篩選出 matchedMilestoneId 等於目前里程碑 ID 的事件
-            const total = branch.events
-                .filter(ev => ev.matchedMilestoneId === milestoneId)
-                .reduce((sum, ev) => sum + Number(ev.hours || 0), 0);
-                
-            // 依照您的規定，進位到小數點第一位
-            return Math.round(total * 10) / 10;
-        },
+    // [New] 計算特定里程碑的累計工時
+    getMilestoneHours(branch, milestoneId) {
+      if (!branch || !branch.events) return 0;
+
+      // 篩選出 matchedMilestoneId 等於目前里程碑 ID 的事件
+      const total = branch.events
+        .filter((ev) => ev.matchedMilestoneId === milestoneId)
+        .reduce((sum, ev) => sum + Number(ev.hours || 0), 0);
+
+      // 依照您的規定，進位到小數點第一位
+      return Math.round(total * 10) / 10;
+    },
   },
 });
 
