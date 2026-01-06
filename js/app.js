@@ -405,7 +405,9 @@ const app = createApp({
           reasonList: this.objToArr(overallReasons, overallCount),
         },
         archivedList,
-        archivedHours: Math.round(totalPeriodHours * 10) / 10, // 進位到小數點第一位
+
+        // ★ 這裡加上 Math.round
+        archivedHours: Math.round(totalPeriodHours * 10) / 10,
       };
     },
     currentProjectStats() {
@@ -431,7 +433,7 @@ const app = createApp({
       return {
         total: subs.length,
         completed,
-        act,
+        act: Math.round(act * 10) / 10,
         delays,
         maxDelay,
         progress: subs.length ? Math.round(totalPercent / subs.length) : 0,
@@ -577,55 +579,62 @@ const app = createApp({
       );
       return sorted.filter((m) => !m.isCompleted).slice(0, 1);
     },
-memberHoursStats() {
-            const stats = {};
-            this.users.forEach(u => stats[u.name] = { name: u.name, team: u.team, hours: 0 });
-            this.allSubProjects.forEach(item => {
-                const sp = item.branch;
-                if (sp.events) {
-                    sp.events.forEach(ev => {
-                        if (this.checkDateMatch(ev.date) && stats[ev.worker]) stats[ev.worker].hours += Number(ev.hours || 0);
-                    });
-                }
-            });
-            // [修改] 加上 Math.round 處理
-            return Object.values(stats)
-                .map(s => ({
-                    ...s,
-                    hours: Math.round(s.hours * 10) / 10
-                }))
-                .sort((a, b) => b.hours - a.hours);
-        },
-departmentHours() {
-            const deptStats = {}; let totalAll = 0;
-            this.memberHoursStats.forEach(m => {
-                if (!deptStats[m.team]) deptStats[m.team] = 0;
-                deptStats[m.team] += m.hours; totalAll += m.hours;
-            });
-            return Object.entries(deptStats).map(([team, hours]) => ({
-                name: team, 
-                hours: Math.round(hours * 10) / 10, // [修改] 這裡也進位
-                percent: totalAll ? Math.round((hours / totalAll) * 100) : 0
-            })).sort((a, b) => b.hours - a.hours);
-        },
+    memberHoursStats() {
+      const stats = {};
+      this.users.forEach(
+        (u) => (stats[u.name] = { name: u.name, team: u.team, hours: 0 })
+      );
+      this.allSubProjects.forEach((item) => {
+        const sp = item.branch;
+        if (sp.events) {
+          sp.events.forEach((ev) => {
+            if (this.checkDateMatch(ev.date) && stats[ev.worker])
+              stats[ev.worker].hours += Number(ev.hours || 0);
+          });
+        }
+      });
+      // [修改] 加上 Math.round 處理
+      return Object.values(stats)
+        .map((s) => ({
+          ...s,
+          hours: Math.round(s.hours * 10) / 10,
+        }))
+        .sort((a, b) => b.hours - a.hours);
+    },
+    departmentHours() {
+      const deptStats = {};
+      let totalAll = 0;
+      this.memberHoursStats.forEach((m) => {
+        if (!deptStats[m.team]) deptStats[m.team] = 0;
+        deptStats[m.team] += m.hours;
+        totalAll += m.hours;
+      });
+      return Object.entries(deptStats)
+        .map(([team, hours]) => ({
+          name: team,
+          hours: Math.round(hours * 10) / 10, // [修改] 這裡也進位
+          percent: totalAll ? Math.round((hours / totalAll) * 100) : 0,
+        }))
+        .sort((a, b) => b.hours - a.hours);
+    },
   },
   watch: {
     // [效能優化] 觸發載入歷史資料
-currentView(newView) {
-            if (newView === 'history_report' || newView === 'parent_detail') {
-                this.loadHistoryData();
-            }
-        },
-showArchived(isShown) {
-            if (isShown) {
-                this.loadHistoryData();
-            }
-        },
-memberDetailYear(newYear) {
-            if (newYear !== 'all' && newYear < new Date().getFullYear()) {
-                this.loadHistoryData();
-            }
-        }
+    currentView(newView) {
+      if (newView === "history_report" || newView === "parent_detail") {
+        this.loadHistoryData();
+      }
+    },
+    showArchived(isShown) {
+      if (isShown) {
+        this.loadHistoryData();
+      }
+    },
+    memberDetailYear(newYear) {
+      if (newYear !== "all" && newYear < new Date().getFullYear()) {
+        this.loadHistoryData();
+      }
+    },
   },
   methods: {
     requestNotificationPermission() {
@@ -1664,10 +1673,11 @@ memberDetailYear(newYear) {
       p.expanded = !p.expanded;
     },
     calcSubProjectHours(sp) {
-      return (sp.events || []).reduce(
+      const total = (sp.events || []).reduce(
         (sum, ev) => sum + Number(ev.hours || 0),
         0
       );
+      return Math.round(total * 10) / 10;
     },
     getMilestoneName(mid) {
       return (
