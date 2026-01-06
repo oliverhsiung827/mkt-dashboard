@@ -1320,15 +1320,30 @@
                                                                 getDaysLate(ms.date) }} 天 (警示)</span>
                                                         </div>
                                                     </div>
-                                                    <div v-if="ms.isCompleted">
-                                                        <span v-if="ms.diffDays < 0"
-                                                            class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded font-bold">提早
-                                                            {{ Math.abs(ms.diffDays) }} 天</span>
-                                                        <span v-else-if="ms.diffDays > 0"
-                                                            class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">延遲
-                                                            {{ ms.diffDays }} 天</span>
-                                                        <span v-else
-                                                            class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">準時完成</span>
+                                                    <div v-if="ms.isCompleted" class="text-right">
+                                                        <div class="mb-1">
+                                                            <span
+                                                                class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100"
+                                                                title="此階段累計工時">
+                                                                <i class="fas fa-hammer mr-1"></i>{{
+                                                                getMilestoneHours(currentSubProject, ms.id) }} h
+                                                            </span>
+                                                        </div>
+
+                                                        <div>
+                                                            <span v-if="ms.diffDays < 0"
+                                                                class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded font-bold">
+                                                                提早 {{ Math.abs(ms.diffDays) }} 天
+                                                            </span>
+                                                            <span v-else-if="ms.diffDays > 0"
+                                                                class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">
+                                                                延遲 {{ ms.diffDays }} 天
+                                                            </span>
+                                                            <span v-else
+                                                                class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">
+                                                                準時完成
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1871,8 +1886,13 @@
                                                     <i class="fas fa-spinner fa-spin mr-1"></i> Current Target
                                                 </div>
                                                 <div v-if="ms.isPast"
-                                                    class="mt-1 text-[10px] text-emerald-600 font-bold">
-                                                    完成於: {{ ms.completedDate || 'Checked' }}
+                                                    class="mt-1 text-[10px] text-emerald-600 font-bold flex justify-between items-center">
+                                                    <span>完成於: {{ ms.completedDate || 'Checked' }}</span>
+
+                                                    <span class="bg-emerald-100 text-emerald-700 px-1.5 rounded">
+                                                        <i class="fas fa-stopwatch mr-1"></i>
+                                                        {{ getMilestoneHours(quickViewData.branch, ms.id) }} h
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>

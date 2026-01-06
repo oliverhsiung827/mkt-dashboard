@@ -1912,6 +1912,20 @@ const app = createApp({
           idx > firstIncompleteIdx,
       }));
     },
+    // 在 app.js 的 methods: { ... } 裡面加入：
+
+        // [New] 計算特定里程碑的累計工時
+        getMilestoneHours(branch, milestoneId) {
+            if (!branch || !branch.events) return 0;
+            
+            // 篩選出 matchedMilestoneId 等於目前里程碑 ID 的事件
+            const total = branch.events
+                .filter(ev => ev.matchedMilestoneId === milestoneId)
+                .reduce((sum, ev) => sum + Number(ev.hours || 0), 0);
+                
+            // 依照您的規定，進位到小數點第一位
+            return Math.round(total * 10) / 10;
+        },
   },
 });
 
