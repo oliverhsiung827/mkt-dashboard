@@ -840,8 +840,14 @@
                                             <div class="font-bold text-slate-800 text-lg">{{ item.project.title }}</div>
                                         </div>
                                         <div v-else class="flex-1">
-                                            <div class="text-xs text-slate-400 mb-1">{{ item?.brand?.name || 'Unknown'
-                                                }} / {{ item.parent.title }}</div>
+                                            
+                                                <div class="text-xs text-slate-400 flex items-center gap-1 mb-1"><span
+                                                        class="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold">{{
+                                                        item?.brand?.name || 'Unknown' }}</span><i
+                                                        class="fas fa-chevron-right text-[8px]"></i><span>{{
+                                                        item?.parent?.title || 'Unknown' }}</span></div>
+                                                
+                                            
                                             <div class="font-bold text-slate-700 flex items-center">{{ item.sub.title
                                                 }}<span
                                                     v-if="!item.isParent && getProjectHealth(item.sub).type === 'delay'"
