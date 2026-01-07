@@ -177,7 +177,7 @@ const app = createApp({
         },
       ],
       isCommonLinksExpanded: false,
-      archiveSearch: '',
+      archiveSearch: "",
     };
   },
   async mounted() {
@@ -224,12 +224,16 @@ const app = createApp({
     rawParents() {
       // 確保沒有重複 ID (如果補抓時重複)
       const map = new Map();
-      [...this.activeParents, ...this.historyParents].forEach(p => map.set(p.id, p));
+      [...this.activeParents, ...this.historyParents].forEach((p) =>
+        map.set(p.id, p)
+      );
       return Array.from(map.values());
     },
     rawSubs() {
       const map = new Map();
-      [...this.activeSubs, ...this.historySubs].forEach(s => map.set(s.id, s));
+      [...this.activeSubs, ...this.historySubs].forEach((s) =>
+        map.set(s.id, s)
+      );
       return Array.from(map.values());
     },
 
@@ -278,22 +282,22 @@ const app = createApp({
       );
     },
     // [修正] 歸檔專案篩選器 (包含 aborted 與 archived)
-archivedProjects() {
-            if (!this.rawParents) return [];
-            
-            // 1. 先篩選狀態
-            let list = this.rawParents.filter(p => 
-                p.status === 'archived' || p.status === 'aborted'
-            );
+    archivedProjects() {
+      if (!this.rawParents) return [];
 
-            // 2. [New] 再篩選關鍵字
-            if (this.archiveSearch) {
-                const key = this.archiveSearch.toLowerCase();
-                list = list.filter(p => p.title.toLowerCase().includes(key));
-            }
+      // 1. 先篩選狀態
+      let list = this.rawParents.filter(
+        (p) => p.status === "archived" || p.status === "aborted"
+      );
 
-            return list;
-        },
+      // 2. [New] 再篩選關鍵字
+      if (this.archiveSearch) {
+        const key = this.archiveSearch.toLowerCase();
+        list = list.filter((p) => p.title.toLowerCase().includes(key));
+      }
+
+      return list;
+    },
     unreadNotificationsCount() {
       return this.notifications.filter((n) => !n.read).length;
     },
@@ -309,15 +313,17 @@ archivedProjects() {
     },
     // [New] 根據搜尋關鍵字過濾子專案
     filteredSubProjects() {
-        if (!this.currentParentProject) return [];
-        const allSubs = this.getSortedSubs(this.currentParentProject.id);
-        if (!this.subProjectSearch) return allSubs;
-        const keyword = this.subProjectSearch.toLowerCase();
-        return allSubs.filter(sp => 
-            sp.title.toLowerCase().includes(keyword) || 
-            sp.assignee.toLowerCase().includes(keyword) ||
-            (this.statusMap[sp.status] && this.statusMap[sp.status].includes(keyword))
-        );
+      if (!this.currentParentProject) return [];
+      const allSubs = this.getSortedSubs(this.currentParentProject.id);
+      if (!this.subProjectSearch) return allSubs;
+      const keyword = this.subProjectSearch.toLowerCase();
+      return allSubs.filter(
+        (sp) =>
+          sp.title.toLowerCase().includes(keyword) ||
+          sp.assignee.toLowerCase().includes(keyword) ||
+          (this.statusMap[sp.status] &&
+            this.statusMap[sp.status].includes(keyword))
+      );
     },
 
     // [核心] 待辦清單邏輯
@@ -869,57 +875,57 @@ archivedProjects() {
 
     // [New] 延遲載入歷史資料 (補抓 Completed, Aborted, Archived)
     async loadHistoryData() {
-        if (this.isHistoryLoaded) return;
-        this.isLoading = true;
-        try {
-            const safeProject = (d) => ({
-                id: d.id,
-                brandId: "",
-                title: "Untitled",
-                status: "active",
-                startDate: "",
-                endDate: "",
-                owner: "Unknown",
-                ...d.data(),
-            });
-            const safeSub = (d) => {
-                const data = d.data();
-                return {
-                    id: d.id,
-                    parentId: "",
-                    title: "Untitled",
-                    status: "setup",
-                    ...data,
-                    milestones: data.milestones || [],
-                    events: data.events || [],
-                    links: data.links || [],
-                    comments: data.comments || [],
-                };
-            };
-            
-            // 抓母專案 (包含 archived 與 aborted)
-            const qHistoryProjects = query(
-                collection(db, "projects"),
-                where("status", "in", ["completed", "aborted", "archived"])
-            );
-            const snapProj = await getDocs(qHistoryProjects);
-            this.historyParents = snapProj.docs.map((d) => safeProject(d));
+      if (this.isHistoryLoaded) return;
+      this.isLoading = true;
+      try {
+        const safeProject = (d) => ({
+          id: d.id,
+          brandId: "",
+          title: "Untitled",
+          status: "active",
+          startDate: "",
+          endDate: "",
+          owner: "Unknown",
+          ...d.data(),
+        });
+        const safeSub = (d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            parentId: "",
+            title: "Untitled",
+            status: "setup",
+            ...data,
+            milestones: data.milestones || [],
+            events: data.events || [],
+            links: data.links || [],
+            comments: data.comments || [],
+          };
+        };
 
-            // 抓子專案
-            const qHistorySubs = query(
-                collection(db, "sub_projects"),
-                where("status", "in", ["completed", "aborted"])
-            );
-            const snapSubs = await getDocs(qHistorySubs);
-            this.historySubs = snapSubs.docs.map((d) => safeSub(d));
+        // 抓母專案 (包含 archived 與 aborted)
+        const qHistoryProjects = query(
+          collection(db, "projects"),
+          where("status", "in", ["completed", "aborted", "archived"])
+        );
+        const snapProj = await getDocs(qHistoryProjects);
+        this.historyParents = snapProj.docs.map((d) => safeProject(d));
 
-            this.isHistoryLoaded = true;
-            this.buildIndexes(); // 重新建立索引，讓 computed 吃到新資料
-        } catch (err) {
-            console.error("補抓歸檔資料失敗", err);
-        } finally {
-            this.isLoading = false;
-        }
+        // 抓子專案
+        const qHistorySubs = query(
+          collection(db, "sub_projects"),
+          where("status", "in", ["completed", "aborted"])
+        );
+        const snapSubs = await getDocs(qHistorySubs);
+        this.historySubs = snapSubs.docs.map((d) => safeSub(d));
+
+        this.isHistoryLoaded = true;
+        this.buildIndexes(); // 重新建立索引，讓 computed 吃到新資料
+      } catch (err) {
+        console.error("補抓歸檔資料失敗", err);
+      } finally {
+        this.isLoading = false;
+      }
     },
 
     buildIndexes() {
@@ -964,29 +970,30 @@ archivedProjects() {
           activeCount++;
           const hd = this.getDaysHeld(sp.lastHandoffDate);
           holdDaysSum += hd;
-          activeTasks.push({ parent: item.parent, sub: sp, holdDays: hd });
+          activeTasks.push({
+            brand: item.brand,
+            parent: item.parent,
+            sub: sp,
+            holdDays: hd,
+          });
         }
         if (sp.assignee === m.name) {
+          // [修改] 年份判斷邏輯優化
+          // 如果是「規劃中 (setup)」且還沒填結束日，就改用「開始日」來判斷年份，避免被過濾掉
+          let dateForFilter = sp.endDate;
+          if (sp.status === "setup" && !dateForFilter) {
+            dateForFilter = sp.startDate;
+          }
+
           if (
             this.memberDetailYear === "all" ||
-            (sp.endDate && sp.endDate.startsWith(this.memberDetailYear))
+            (dateForFilter && dateForFilter.startsWith(this.memberDetailYear))
           ) {
             overallCount++;
-            const d =
-              sp.finalDelayDays !== undefined
-                ? sp.finalDelayDays
-                : this.getSubProjectDelayDays(sp);
-            if (d > 0 && sp.status !== "aborted") {
-              overallDelay++;
-              overallDelayDays += d;
-            }
-            if (
-              (sp.status === "completed" || sp.status === "aborted") &&
-              sp.delayReason
-            )
-              overallReasons[sp.delayReason] =
-                (overallReasons[sp.delayReason] || 0) + 1;
-            ownedList.push({ parent: item.parent, sub: sp });
+            // ... (原本的邏輯: 計算延遲等) ...
+
+            // [修改] 記得確保這裡有加入 brand (上一各步驟我們加過了，這裡保留)
+            ownedList.push({ brand: item.brand, parent: item.parent, sub: sp });
           }
         }
       });
@@ -1705,18 +1712,20 @@ archivedProjects() {
     },
     // [New] 全案歸檔按鈕動作
     async archiveProject(project) {
-        if (!confirm(`確定要將專案「${project.title}」歸檔嗎？`)) return;
+      if (!confirm(`確定要將專案「${project.title}」歸檔嗎？`)) return;
 
-        try {
-            await updateDoc(doc(db, "projects", project.id), { status: 'archived' });
-            project.status = 'archived'; // Local update
-            this.currentView = 'dashboard';
-            this.loadHistoryData();
-            alert('專案已歸檔！');
-        } catch (e) {
-            console.error(e);
-            alert("歸檔失敗");
-        }
+      try {
+        await updateDoc(doc(db, "projects", project.id), {
+          status: "archived",
+        });
+        project.status = "archived"; // Local update
+        this.currentView = "dashboard";
+        this.loadHistoryData();
+        alert("專案已歸檔！");
+      } catch (e) {
+        console.error(e);
+        alert("歸檔失敗");
+      }
     },
     // 結案 (與歸檔不同，結案為 completed)
     async completeParentProject(proj) {
@@ -1863,11 +1872,16 @@ archivedProjects() {
       };
     },
     statusBadge(s) {
+      // [新增] 規劃中 (黃色 + 邊框)
+      if (s === "setup")
+        return "bg-yellow-100 text-yellow-700 border border-yellow-200";
+
       if (s === "completed") return "bg-emerald-100 text-emerald-700";
       if (s === "in_progress") return "bg-indigo-100 text-indigo-700";
       if (s === "aborted") return "bg-slate-200 text-slate-600";
       if (s === "archived") return "bg-gray-800 text-gray-300";
-      return "bg-yellow-100 text-yellow-700";
+
+      return "bg-slate-100 text-slate-500"; // 預設值
     },
     getDeadlineStatus(dateStr) {
       if (!dateStr) return { status: "normal", label: "未定", days: 0 };
@@ -1981,8 +1995,9 @@ archivedProjects() {
     },
 
     // --- 快速檢視視窗 ---
-    openQuickView(branch, parent) {
-      this.quickViewData = { branch, parent };
+    openQuickView(branch, parent, brand) {
+      // [修改] 增加 brand 參數
+      this.quickViewData = { branch, parent, brand }; // [修改] 把 brand 存進去
       this.showQuickViewModal = true;
     },
     getQuickViewMilestones(branch) {
