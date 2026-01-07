@@ -198,11 +198,20 @@
                 <div v-if="showMobileSidebar" @click="showMobileSidebar = false"
                     class="fixed inset-0 bg-slate-900/80 z-30 md:hidden fade-in"></div>
 
-                <div :class="['bg-slate-900 text-slate-300 flex flex-col shadow-inner flex-shrink-0 h-full border-r border-slate-800 transition-all duration-300 ease-in-out z-40', 
+<div :class="['bg-slate-900 text-slate-300 flex flex-col shadow-inner flex-shrink-0 h-full border-r border-slate-800 transition-all duration-75 ease-linear z-40 relative group/sidebar', 
     showMobileSidebar ? 'translate-x-0 fixed w-64' : '-translate-x-full fixed md:relative md:translate-x-0',
-    isSidebarCollapsed ? 'md:w-16' : 'md:w-64' ]">
+    isSidebarCollapsed ? 'md:w-16' : '' ]"
+    :style="(!showMobileSidebar && !isSidebarCollapsed) ? { width: sidebarWidth + 'px' } : {}">
+
+    <div v-if="!isSidebarCollapsed && !showMobileSidebar"
+         @mousedown.prevent="startResizeSidebar"
+         class="absolute right-[-4px] top-0 bottom-0 w-1.5 cursor-col-resize z-50 hover:bg-indigo-500 transition-colors opacity-0 hover:opacity-100 group-hover/sidebar:opacity-100 delay-100"
+         title="拖曳調整寬度">
+    </div>
+    
 
                     <div class="flex-1 overflow-y-auto no-scrollbar py-4 flex flex-col">
+                        
                         <div class="px-3 mb-4 space-y-1">
                             <button @click="currentView = 'dashboard'; filterStatus = 'all'; showMobileSidebar = false"
                                 :title="isSidebarCollapsed ? '戰情儀表板' : ''" :class="['w-full text-left py-2.5 rounded-lg flex items-center transition relative group', 

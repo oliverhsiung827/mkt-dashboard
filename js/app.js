@@ -178,6 +178,9 @@ const app = createApp({
       ],
       isCommonLinksExpanded: false,
       archiveSearch: "",
+      // [New] 側邊欄調整相關
+      sidebarWidth: 256, // 預設寬度 (px)
+      isResizingSidebar: false,
     };
   },
   async mounted() {
@@ -2024,6 +2027,43 @@ const app = createApp({
         .filter((ev) => ev.matchedMilestoneId === milestoneId)
         .reduce((sum, ev) => sum + Number(ev.hours || 0), 0);
       return Math.round(total * 10) / 10;
+    },
+    // ... 其他 methods ...
+
+    // [New] 開始調整側邊欄寬度
+    startResizeSidebar(e) {
+      this.isResizingSidebar = true;
+      // 加入全域監聽，避免滑鼠移出 iframe 或區塊時失效
+      document.addEventListener("mousemove", this.handleSidebarResize);
+      document.addEventListener("mouseup", this.stopResizeSidebar);
+      // 防止拖曳時選取到文字
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "col-resize";
+    },
+
+    // [New] 計算新寬度
+    handleSidebarResize(e) {
+      if (!this.isResizingSidebar) return;
+
+      // 設定最小與最大寬度限制
+      const minWidth = 200;
+      const maxWidth = 600;
+
+      let newWidth = e.clientX;
+
+      if (newWidth < minWidth) newWidth = minWidth;
+      if (newWidth > maxWidth) newWidth = maxWidth;
+
+      this.sidebarWidth = newWidth;
+    },
+
+    // [New] 停止調整
+    stopResizeSidebar() {
+      this.isResizingSidebar = false;
+      document.removeEventListener("mousemove", this.handleSidebarResize);
+      document.removeEventListener("mouseup", this.stopResizeSidebar);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
     },
   },
 });
