@@ -94,12 +94,14 @@
                     <p class="text-slate-500 text-sm mt-2">v1.6 2026/01/07更新</p>
                 </div>
                 <div v-if="authError" class="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-6 flex items-center"><i
-                        class="fas fa-exclamation-circle mr-2"></i> {{ authError }}</div>
+                        class="fas fa-exclamation-circle mr-2"></i>( T__T) 嗚嗚，我也想讓進去，但這個帳號或密碼我不認識...</div>
                 <div class="space-y-5">
                     <input v-model="authForm.email" type="email"
+                        @keyup.enter="handleAuth"
                         class="w-full border rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="Email">
                     <input v-model="authForm.password" type="password"
+                        @keyup.enter="handleAuth"
                         class="w-full border rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="Password">
                     <div v-if="isRegisterMode" class="space-y-5 pt-2 border-t border-slate-100 fade-in">
@@ -198,20 +200,19 @@
                 <div v-if="showMobileSidebar" @click="showMobileSidebar = false"
                     class="fixed inset-0 bg-slate-900/80 z-30 md:hidden fade-in"></div>
 
-<div :class="['bg-slate-900 text-slate-300 flex flex-col shadow-inner flex-shrink-0 h-full border-r border-slate-800 transition-all duration-75 ease-linear z-40 relative group/sidebar', 
+                <div :class="['bg-slate-900 text-slate-300 flex flex-col shadow-inner flex-shrink-0 h-full border-r border-slate-800 transition-all duration-75 ease-linear z-40 relative group/sidebar', 
     showMobileSidebar ? 'translate-x-0 fixed w-64' : '-translate-x-full fixed md:relative md:translate-x-0',
     isSidebarCollapsed ? 'md:w-16' : '' ]"
-    :style="(!showMobileSidebar && !isSidebarCollapsed) ? { width: sidebarWidth + 'px' } : {}">
+                    :style="(!showMobileSidebar && !isSidebarCollapsed) ? { width: sidebarWidth + 'px' } : {}">
 
-    <div v-if="!isSidebarCollapsed && !showMobileSidebar"
-         @mousedown.prevent="startResizeSidebar"
-         class="absolute right-[-4px] top-0 bottom-0 w-1.5 cursor-col-resize z-50 hover:bg-indigo-500 transition-colors opacity-0 hover:opacity-100 group-hover/sidebar:opacity-100 delay-100"
-         title="拖曳調整寬度">
-    </div>
-    
+                    <div v-if="!isSidebarCollapsed && !showMobileSidebar" @mousedown.prevent="startResizeSidebar"
+                        class="absolute right-[-4px] top-0 bottom-0 w-1.5 cursor-col-resize z-50 hover:bg-indigo-500 transition-colors opacity-0 hover:opacity-100 group-hover/sidebar:opacity-100 delay-100"
+                        title="拖曳調整寬度">
+                    </div>
+
 
                     <div class="flex-1 overflow-y-auto no-scrollbar py-4 flex flex-col">
-                        
+
                         <div class="px-3 mb-4 space-y-1">
                             <button @click="currentView = 'dashboard'; filterStatus = 'all'; showMobileSidebar = false"
                                 :title="isSidebarCollapsed ? '戰情儀表板' : ''" :class="['w-full text-left py-2.5 rounded-lg flex items-center transition relative group', 
@@ -849,14 +850,14 @@
                                             <div class="font-bold text-slate-800 text-lg">{{ item.project.title }}</div>
                                         </div>
                                         <div v-else class="flex-1">
-                                            
-                                                <div class="text-xs text-slate-400 flex items-center gap-1 mb-1"><span
-                                                        class="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold">{{
-                                                        item?.brand?.name || 'Unknown' }}</span><i
-                                                        class="fas fa-chevron-right text-[8px]"></i><span>{{
-                                                        item?.parent?.title || 'Unknown' }}</span></div>
-                                                
-                                            
+
+                                            <div class="text-xs text-slate-400 flex items-center gap-1 mb-1"><span
+                                                    class="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold">{{
+                                                    item?.brand?.name || 'Unknown' }}</span><i
+                                                    class="fas fa-chevron-right text-[8px]"></i><span>{{
+                                                    item?.parent?.title || 'Unknown' }}</span></div>
+
+
                                             <div class="font-bold text-slate-700 flex items-center">{{ item.sub.title
                                                 }}<span
                                                     v-if="!item.isParent && getProjectHealth(item.sub).type === 'delay'"
