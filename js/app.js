@@ -68,6 +68,7 @@ const app = createApp({
       currentView: "dashboard",
       selectedDashboardBrand: "all",
       sidebarSearch: "",
+      subProjectSearch: "", // [New] 子專案搜尋關鍵字
       brandExpandedState: {},
       historyStack: [],
       currentYear: new Date().getFullYear(),
@@ -83,6 +84,7 @@ const app = createApp({
       historyParents: [],
       historySubs: [],
       isHistoryLoaded: false,
+      isLoading: false,
 
       indexedSubsByParent: {},
       indexedBrandMap: {},
@@ -130,6 +132,7 @@ const app = createApp({
         in_progress: "執行中",
         completed: "已結案",
         aborted: "已中止",
+        archived: "已歸檔", // UI Map
       },
       dataReady: false,
       isSubmitting: false,
@@ -174,6 +177,7 @@ const app = createApp({
         },
       ],
       isCommonLinksExpanded: false,
+      archiveSearch: '',
     };
   },
   async mounted() {
@@ -218,10 +222,15 @@ const app = createApp({
     },
     // [效能優化] 合併活躍與歷史資料
     rawParents() {
-      return [...this.activeParents, ...this.historyParents];
+      // 確保沒有重複 ID (如果補抓時重複)
+      const map = new Map();
+      [...this.activeParents, ...this.historyParents].forEach(p => map.set(p.id, p));
+      return Array.from(map.values());
     },
     rawSubs() {
-      return [...this.activeSubs, ...this.historySubs];
+      const map = new Map();
+      [...this.activeSubs, ...this.historySubs].forEach(s => map.set(s.id, s));
+      return Array.from(map.values());
     },
 
     currentUser() {
@@ -236,7 +245,7 @@ const app = createApp({
     canEditSubProject() {
       if (!this.currentSubProject) return false;
       if (
-        this.currentSubProject.status === "completed" ||
+        this.currentSubProject.status === "archived" ||
         this.currentSubProject.status === "aborted"
       )
         return false;
@@ -268,11 +277,23 @@ const app = createApp({
         (a, b) => new Date(a.date) - new Date(b.date)
       );
     },
-    archivedProjects() {
-      return this.rawParents.filter(
-        (p) => p.status === "completed" || p.status === "aborted"
-      );
-    },
+    // [修正] 歸檔專案篩選器 (包含 aborted 與 archived)
+archivedProjects() {
+            if (!this.rawParents) return [];
+            
+            // 1. 先篩選狀態
+            let list = this.rawParents.filter(p => 
+                p.status === 'archived' || p.status === 'aborted'
+            );
+
+            // 2. [New] 再篩選關鍵字
+            if (this.archiveSearch) {
+                const key = this.archiveSearch.toLowerCase();
+                list = list.filter(p => p.title.toLowerCase().includes(key));
+            }
+
+            return list;
+        },
     unreadNotificationsCount() {
       return this.notifications.filter((n) => !n.read).length;
     },
@@ -286,7 +307,20 @@ const app = createApp({
     getSubsForParent() {
       return (pid) => this.indexedSubsByParent[pid] || [];
     },
+    // [New] 根據搜尋關鍵字過濾子專案
+    filteredSubProjects() {
+        if (!this.currentParentProject) return [];
+        const allSubs = this.getSortedSubs(this.currentParentProject.id);
+        if (!this.subProjectSearch) return allSubs;
+        const keyword = this.subProjectSearch.toLowerCase();
+        return allSubs.filter(sp => 
+            sp.title.toLowerCase().includes(keyword) || 
+            sp.assignee.toLowerCase().includes(keyword) ||
+            (this.statusMap[sp.status] && this.statusMap[sp.status].includes(keyword))
+        );
+    },
 
+    // [核心] 待辦清單邏輯
     myHandledBranches() {
       const list = [];
       this.rawParents.forEach((p) => {
@@ -446,7 +480,7 @@ const app = createApp({
         },
         archivedList,
 
-        // ★ 這裡加上 Math.round
+        // ★ 這裡加上 Math.round (強制進位)
         archivedHours: Math.round(totalPeriodHours * 10) / 10,
       };
     },
@@ -459,7 +493,7 @@ const app = createApp({
         totalPercent = 0,
         maxDelay = 0;
       subs.forEach((sp) => {
-        act += this.calcSubProjectHours(sp);
+        act += this.calcSubProjectHours(sp); // 呼叫已修正的計算函式
         const h = this.getProjectHealth(sp);
         if (sp.status !== "aborted" && h.type === "delay") {
           delays++;
@@ -473,7 +507,7 @@ const app = createApp({
       return {
         total: subs.length,
         completed,
-        act: Math.round(act * 10) / 10,
+        act: Math.round(act * 10) / 10, // 再次確保加總進位
         delays,
         maxDelay,
         progress: subs.length ? Math.round(totalPercent / subs.length) : 0,
@@ -659,7 +693,7 @@ const app = createApp({
     },
   },
   watch: {
-    // [效能優化] 觸發載入歷史資料
+    // [效能優化] 觸發載入歷史資料 (檢視專案詳情、歷史報表、歸檔區展開)
     currentView(newView) {
       if (newView === "history_report" || newView === "parent_detail") {
         this.loadHistoryData();
@@ -667,6 +701,7 @@ const app = createApp({
     },
     showArchived(isShown) {
       if (isShown) {
+        console.log("展開歸檔區，正在補抓資料...");
         this.loadHistoryData();
       }
     },
@@ -832,59 +867,59 @@ const app = createApp({
       }
     },
 
-    // [New] 延遲載入歷史資料
+    // [New] 延遲載入歷史資料 (補抓 Completed, Aborted, Archived)
     async loadHistoryData() {
-      if (this.isHistoryLoaded) return;
-      this.isSubmitting = true;
-      try {
-        const safeProject = (d) => ({
-          id: d.id,
-          brandId: "",
-          title: "Untitled",
-          status: "active",
-          startDate: "",
-          endDate: "",
-          owner: "Unknown",
-          ...d.data(),
-        });
-        const safeSub = (d) => {
-          const data = d.data();
-          return {
-            id: d.id,
-            parentId: "",
-            title: "Untitled",
-            status: "setup",
-            ...data,
-            milestones: data.milestones || [],
-            events: data.events || [],
-            links: data.links || [],
-            comments: data.comments || [],
-          };
-        };
-        const qHistoryProjects = query(
-          collection(db, "projects"),
-          where("status", "in", ["completed", "aborted"])
-        );
-        const snapProj = await getDocs(qHistoryProjects);
-        this.historyParents = snapProj.docs.map((d) => safeProject(d));
+        if (this.isHistoryLoaded) return;
+        this.isLoading = true;
+        try {
+            const safeProject = (d) => ({
+                id: d.id,
+                brandId: "",
+                title: "Untitled",
+                status: "active",
+                startDate: "",
+                endDate: "",
+                owner: "Unknown",
+                ...d.data(),
+            });
+            const safeSub = (d) => {
+                const data = d.data();
+                return {
+                    id: d.id,
+                    parentId: "",
+                    title: "Untitled",
+                    status: "setup",
+                    ...data,
+                    milestones: data.milestones || [],
+                    events: data.events || [],
+                    links: data.links || [],
+                    comments: data.comments || [],
+                };
+            };
+            
+            // 抓母專案 (包含 archived 與 aborted)
+            const qHistoryProjects = query(
+                collection(db, "projects"),
+                where("status", "in", ["completed", "aborted", "archived"])
+            );
+            const snapProj = await getDocs(qHistoryProjects);
+            this.historyParents = snapProj.docs.map((d) => safeProject(d));
 
-        const qHistorySubs = query(
-          collection(db, "sub_projects"),
-          where("status", "in", ["completed", "aborted"])
-        );
-        const snapSubs = await getDocs(qHistorySubs);
-        this.historySubs = snapSubs.docs.map((d) => safeSub(d));
+            // 抓子專案
+            const qHistorySubs = query(
+                collection(db, "sub_projects"),
+                where("status", "in", ["completed", "aborted"])
+            );
+            const snapSubs = await getDocs(qHistorySubs);
+            this.historySubs = snapSubs.docs.map((d) => safeSub(d));
 
-        this.isHistoryLoaded = true;
-        this.buildIndexes();
-        console.log(
-          `歷史資料載入完畢: ${this.historyParents.length} 專案, ${this.historySubs.length} 子專案`
-        );
-      } catch (e) {
-        console.error("載入歷史失敗", e);
-      } finally {
-        this.isSubmitting = false;
-      }
+            this.isHistoryLoaded = true;
+            this.buildIndexes(); // 重新建立索引，讓 computed 吃到新資料
+        } catch (err) {
+            console.error("補抓歸檔資料失敗", err);
+        } finally {
+            this.isLoading = false;
+        }
     },
 
     buildIndexes() {
@@ -1489,7 +1524,7 @@ const app = createApp({
               return;
             } else {
               isProjectCompleted = true;
-              this.currentSubProject.status = "completed";
+              this.currentSubProject.status = "archived";
               this.currentSubProject.finalDelayDays = 0;
               this.currentSubProject.completedDate = this.eventForm.date;
               alert("恭喜！專案準時完成，自動結案。");
@@ -1626,7 +1661,7 @@ const app = createApp({
               (new Date(data.newEvent.date) - new Date(ms.date)) / 86400000
             );
           }
-          this.currentSubProject.status = "completed";
+          this.currentSubProject.status = "archived";
           this.currentSubProject.finalDelayDays = data.finalDelay;
           this.currentSubProject.delayReason = this.delayForm.reason;
           this.currentSubProject.delayRemark = this.delayForm.remark;
@@ -1668,8 +1703,24 @@ const app = createApp({
         this.isSubmitting = false;
       }
     },
+    // [New] 全案歸檔按鈕動作
+    async archiveProject(project) {
+        if (!confirm(`確定要將專案「${project.title}」歸檔嗎？`)) return;
+
+        try {
+            await updateDoc(doc(db, "projects", project.id), { status: 'archived' });
+            project.status = 'archived'; // Local update
+            this.currentView = 'dashboard';
+            this.loadHistoryData();
+            alert('專案已歸檔！');
+        } catch (e) {
+            console.error(e);
+            alert("歸檔失敗");
+        }
+    },
+    // 結案 (與歸檔不同，結案為 completed)
     async completeParentProject(proj) {
-      if (confirm("全案歸檔？"))
+      if (confirm("確認全案結案？(狀態將變為 completed)"))
         await updateDoc(doc(db, "projects", proj.id), { status: "completed" });
       this.currentView = "dashboard";
     },
@@ -1712,6 +1763,7 @@ const app = createApp({
     toggleExpand(p) {
       p.expanded = !p.expanded;
     },
+    // [修正] 底層計算函式：強制進位到小數點第一位
     calcSubProjectHours(sp) {
       const total = (sp.events || []).reduce(
         (sum, ev) => sum + Number(ev.hours || 0),
@@ -1814,6 +1866,7 @@ const app = createApp({
       if (s === "completed") return "bg-emerald-100 text-emerald-700";
       if (s === "in_progress") return "bg-indigo-100 text-indigo-700";
       if (s === "aborted") return "bg-slate-200 text-slate-600";
+      if (s === "archived") return "bg-gray-800 text-gray-300";
       return "bg-yellow-100 text-yellow-700";
     },
     getDeadlineStatus(dateStr) {
@@ -1932,18 +1985,14 @@ const app = createApp({
       this.quickViewData = { branch, parent };
       this.showQuickViewModal = true;
     },
-    // [New] 快速檢視專用：取得排序後的里程碑與狀態
     getQuickViewMilestones(branch) {
       if (!branch.milestones) return [];
-      // 依照日期排序
       const sorted = [...branch.milestones].sort(
         (a, b) => new Date(a.date) - new Date(b.date)
       );
-      // 找出第一個「未完成」的節點索引，標記為 current
       const firstIncompleteIdx = sorted.findIndex((m) => !m.isCompleted);
       return sorted.map((m, idx) => ({
         ...m,
-        // 如果全部都完成了，current 就是 -1 (沒有)，否則就是第一個未完成的
         isCurrent: firstIncompleteIdx !== -1 && idx === firstIncompleteIdx,
         isPast: m.isCompleted,
         isFuture:
@@ -1952,18 +2001,13 @@ const app = createApp({
           idx > firstIncompleteIdx,
       }));
     },
-    // 在 app.js 的 methods: { ... } 裡面加入：
 
     // [New] 計算特定里程碑的累計工時
     getMilestoneHours(branch, milestoneId) {
       if (!branch || !branch.events) return 0;
-
-      // 篩選出 matchedMilestoneId 等於目前里程碑 ID 的事件
       const total = branch.events
         .filter((ev) => ev.matchedMilestoneId === milestoneId)
         .reduce((sum, ev) => sum + Number(ev.hours || 0), 0);
-
-      // 依照您的規定，進位到小數點第一位
       return Math.round(total * 10) / 10;
     },
   },

@@ -91,7 +91,7 @@
             <div class="bg-white/95 backdrop-blur-sm p-10 rounded-2xl shadow-2xl w-[400px] fade-in">
                 <div class="text-center mb-8">
                     <h1 class="text-2xl font-bold text-slate-800">上洋行銷部 專案管理系統</h1>
-                    <p class="text-slate-500 text-sm mt-2">v1.5</p>
+                    <p class="text-slate-500 text-sm mt-2">v1.6 2026/01/07更新</p>
                 </div>
                 <div v-if="authError" class="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-6 flex items-center"><i
                         class="fas fa-exclamation-circle mr-2"></i> {{ authError }}</div>
@@ -330,9 +330,35 @@
                                 <span><i class="fas fa-archive mr-2"></i> 已歸檔</span>
                                 <i :class="['fas transition', showArchived ? 'rotate-180' : '']"></i>
                             </div>
-                            <div v-if="showArchived"
-                                class="mt-2 space-y-1 max-h-32 overflow-y-auto bg-slate-800 rounded-lg p-2 border border-slate-700 fade-in">
-                            </div>
+<div v-if="showArchived" class="mt-2 bg-slate-800 rounded-lg p-2 border border-slate-700 fade-in">
+    
+    <div class="mb-2 relative">
+        <input v-model="archiveSearch" type="text" 
+               class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-[10px] text-slate-300 placeholder-slate-600 focus:border-slate-400 outline-none"
+               placeholder="搜尋歸檔...">
+        <i v-if="archiveSearch" @click="archiveSearch=''" class="fas fa-times absolute right-2 top-1.5 text-[10px] text-slate-500 cursor-pointer hover:text-white"></i>
+    </div>
+
+    <div class="space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
+        <div v-if="archivedProjects.length === 0" class="text-[10px] text-slate-500 text-center py-2">
+            無符合專案
+        </div>
+
+        <div v-for="proj in archivedProjects" :key="proj.id"
+             @click="selectParentProject(proj)"
+             class="text-xs text-slate-400 hover:text-white cursor-pointer px-2 py-1 rounded hover:bg-slate-700 truncate transition flex items-center justify-between group">
+             
+             <div class="flex items-center truncate">
+                 <i class="fas mr-2 text-[10px] opacity-50"
+                    :class="proj.status === 'aborted' ? 'fa-ban text-red-400' : 'fa-box-archive'"></i>
+                 <span class="truncate" :class="proj.status === 'aborted' ? 'line-through decoration-slate-600' : ''">
+                     {{ proj.title }}
+                 </span>
+             </div>
+             <span v-if="proj.status === 'aborted'" class="text-[9px] bg-red-900/50 text-red-300 px-1 rounded ml-1 opacity-0 group-hover:opacity-100">中止</span>
+        </div>
+    </div>
+</div>
                         </div>
 
                         <button v-show="isSidebarCollapsed" @click="isSidebarCollapsed = false; showArchived = true"
@@ -1111,7 +1137,7 @@
 
                     <div v-if="currentView === 'sub_project_detail'"
                         class="flex-1 flex flex-col h-full bg-white w-full fade-in">
-                        <div class="border-b border-slate-200 px-8 py-6 bg-white w-full shadow-sm z-10">
+<div class="border-b border-slate-200 px-8 py-6 bg-white w-full shadow-sm z-10">
                             <div class="flex items-center gap-2 mb-4 bg-slate-50 p-2 rounded-lg border border-slate-100"
                                 v-if="currentSubProject.links && currentSubProject.links.length > 0">
                                 <span class="text-[10px] font-bold text-slate-400 uppercase mr-2">資源連結:</span>
@@ -1120,11 +1146,27 @@
                                     <i class="fas fa-link mr-1"></i> {{ l.title }}
                                 </a>
                             </div>
+
                             <div class="flex items-center justify-between mb-3">
-                                <div class="flex items-center text-xs text-slate-500 hover:text-indigo-600 cursor-pointer transition w-fit"
-                                    @click="goBack">
-                                    <i class="fas fa-arrow-left mr-2"></i> 返回上一頁
+                                <div class="flex items-center text-xs text-slate-500">
+                                    <button @click="goBack" class="mr-3 text-slate-400 hover:text-slate-600 transition p-1" title="返回上一頁">
+                                        <i class="fas fa-arrow-left"></i>
+                                    </button>
+                                    
+                                    <span class="bg-slate-100 px-1.5 py-0.5 rounded text-[10px] font-bold mr-2 text-slate-400">
+                                        {{ indexedBrandMap[currentParentProject?.brandId] || 'Brand' }}
+                                    </span>
+
+                                    <button @click="selectParentProject(currentParentProject)" 
+                                            class="hover:text-indigo-600 hover:underline cursor-pointer flex items-center transition-colors font-medium text-slate-600">
+                                        <i class="fas fa-folder mr-1"></i>
+                                        {{ currentParentProject?.title || 'Unknown Parent' }}
+                                    </button>
+                                    
+                                    <span class="mx-2 text-slate-300">/</span>
+                                    <span class="text-slate-400 font-bold">目前專案</span>
                                 </div>
+
                                 <div class="flex items-center gap-2">
                                     <span v-if="currentSubProject.status === 'setup'"
                                         class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-xs font-bold animate-pulse">規劃中
@@ -1142,6 +1184,7 @@
                                     </span>
                                 </div>
                             </div>
+
                             <div class="flex justify-between items-start">
                                 <div>
                                     <h2 class="text-2xl font-bold text-slate-800 mb-2 flex items-center group">
@@ -1181,16 +1224,12 @@
                                         calcSubProjectHours(currentSubProject) }} <span
                                             class="text-sm text-slate-400 font-medium">hours</span></div>
                                     <div class="flex gap-2 mt-2 justify-end">
-
-
                                         <template
                                             v-if="currentSubProject.status === 'in_progress' && currentUser.name === currentSubProject.currentHandler && !currentSubProject.isWaitingForManager">
-
                                             <button @click="startManagerCheck"
                                                 class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded font-bold transition flex items-center shadow-sm">
                                                 <i class="fas fa-user-tie mr-1"></i> 提交主管確認
                                             </button>
-
                                         </template>
 
                                         <template v-if="currentSubProject.isWaitingForManager">
