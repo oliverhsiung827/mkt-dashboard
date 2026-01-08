@@ -17,6 +17,7 @@ import {
   getDocs,
   limit,
   orderBy,
+  getDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.js";
 
@@ -2542,8 +2543,9 @@ async updateEventLog() {
     // 在 methods: { ... } 裡面，請直接替換掉原本的 handleRouteUpdate
 
     // [最終修正版] 路由處理核心
+// [最終修正版] 路由處理核心 (含單筆補抓救援機制)
     async handleRouteUpdate(route) {
-      // 如果資料還沒準備好，先不做事，等 initListeners 裡的 checkReady 呼叫
+      // 1. 如果使用者權限還沒準備好，先不做事 (等待 watch: dataReady 觸發)
       if (!this.dataReady) return;
 
       console.log("路由同步畫面:", route.name, route.params);
@@ -2552,7 +2554,7 @@ async updateEventLog() {
         case "dashboard":
           this.currentView = "dashboard";
           this.selectedDashboardBrand = "all";
-          break; // 記得要 break
+          break;
 
         case "report":
           this.currentView = "history_report";
@@ -2564,37 +2566,103 @@ async updateEventLog() {
           this.workspaceTab = "tasks";
           break;
 
-        case "parent":
+        case "parent": {
           const pid = route.params.pid;
-          const parent = this.indexedParentMap[pid];
+          let parent = this.indexedParentMap[pid];
+
+          // 救援 A: 嘗試下載歷史資料 (如果快取找不到)
+          if (!parent && !this.isHistoryLoaded) {
+            console.log("快取未命中，嘗試載入歷史資料...");
+            await this.loadHistoryData();
+            parent = this.indexedParentMap[pid];
+          }
+
+          // 救援 B: (終極) 如果還是找不到，直接單筆抓取
+          // 這能解決「資料還沒下載完」或是「被 limit 擋住」的問題
+          if (!parent) {
+             console.log("啟動單筆救援：母專案", pid);
+             try {
+                const snap = await getDoc(doc(db, "projects", pid));
+                if (snap.exists()) {
+                   parent = { id: snap.id, brandId: "", title: "Untitled", status: "active", ...snap.data() };
+                   // 補進 Map 避免下次還要抓
+                   this.indexedParentMap[pid] = parent;
+                   // 暫時塞進 activeParents 讓畫面能渲染
+                   this.activeParents.push(parent); 
+                   // 重建索引確保關聯正確
+                   this.buildIndexes();
+                }
+             } catch(e) { console.error("母專案單筆補抓失敗", e); }
+          }
 
           if (parent) {
             this.currentParentProject = parent;
             this.currentView = "parent_detail";
             this.detailTab = "overview";
-
-            if (!this.activeParents.find((p) => p.id === pid)) {
-              await this.loadHistoryData();
-              // 重新綁定確保拿到資料
-              this.currentParentProject = this.indexedParentMap[pid];
-            }
           } else {
             console.warn("找不到母專案 ID:", pid);
-            // 只有當確定不是資料延遲時才跳轉
-            if (this.isHistoryLoaded) this.$router.replace("/");
+            this.$router.replace("/");
           }
           break;
+        }
 
-        case "sub":
+        case "sub": {
           const subPid = route.params.pid;
           const sid = route.params.sid;
-          const p = this.indexedParentMap[subPid];
-
-          // 嘗試從活躍或歷史清單找
+          
+          let p = this.indexedParentMap[subPid];
+          // 嘗試從活躍或歷史清單找子專案
           let s = this.activeSubs.find((sub) => sub.id === sid);
-          if (!s) {
-            if (!this.isHistoryLoaded) await this.loadHistoryData();
-            s = this.historySubs.find((sub) => sub.id === sid);
+          if (!s) s = this.historySubs.find((sub) => sub.id === sid);
+
+          // 救援 A: 下載歷史資料
+          if ((!p || !s) && !this.isHistoryLoaded) {
+            await this.loadHistoryData();
+            // 重抓變數
+            p = this.indexedParentMap[subPid];
+            if (!s) s = this.activeSubs.find((sub) => sub.id === sid);
+            if (!s) s = this.historySubs.find((sub) => sub.id === sid);
+          }
+
+          // 救援 B: (終極) 單筆抓取
+          if (!p || !s) {
+              console.log("快取未命中，啟動單筆救援 (子專案)...");
+              try {
+                  // 1. 補抓母專案 (如果缺的話)
+                  if (!p) {
+                      const pSnap = await getDoc(doc(db, "projects", subPid));
+                      if (pSnap.exists()) {
+                          p = { id: pSnap.id, brandId: "", title: "Untitled", status: "active", ...pSnap.data() };
+                          this.indexedParentMap[subPid] = p;
+                          this.activeParents.push(p);
+                      }
+                  }
+                  // 2. 補抓子專案 (如果缺的話)
+                  if (!s) {
+                      const sSnap = await getDoc(doc(db, "sub_projects", sid));
+                      if (sSnap.exists()) {
+                          const data = sSnap.data();
+                          s = {
+                              id: sSnap.id,
+                              parentId: "",
+                              title: "Untitled",
+                              status: "setup",
+                              ...data,
+                              milestones: data.milestones || [],
+                              events: data.events || [],
+                              links: data.links || [],
+                              comments: data.comments || []
+                          };
+                          // 補進 activeSubs 讓畫面能顯示
+                          this.activeSubs.push(s);
+                          // 手動更新索引
+                          if(!this.indexedSubsByParent[subPid]) this.indexedSubsByParent[subPid] = [];
+                          this.indexedSubsByParent[subPid].push(s);
+                      }
+                  }
+                  // 補完資料後重建索引
+                  this.buildIndexes();
+              } catch(e) { console.error("單筆補抓失敗", e); }
           }
 
           if (p && s) {
@@ -2603,13 +2671,13 @@ async updateEventLog() {
             this.detailTab = "events";
             this.currentView = "sub_project_detail";
           } else {
-            console.warn("找不到子專案");
-            if (this.isHistoryLoaded) this.$router.replace("/");
+            console.warn("找不到子專案或母專案，導回首頁");
+            this.$router.replace("/");
           }
           break;
+        }
 
         default:
-          // 預設回首頁
           if (this.currentView !== "dashboard") {
             this.currentView = "dashboard";
           }
