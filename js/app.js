@@ -15,6 +15,8 @@ import {
   query,
   where,
   getDocs,
+  limit,
+  orderBy
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.js";
 
@@ -82,6 +84,7 @@ const router = VueRouter.createRouter({
 const app = createApp({
   data() {
     return {
+      isDashboardLoading: false,
       isSidebarCollapsed: false,
       userParams: null,
       authForm: {
@@ -834,78 +837,34 @@ filteredMonitorList() {
       });
       this.hasCheckedDailyTasks = true;
     },
-    initListeners() {
+initListeners() {
       try {
+        // 1. 請求通知權限 (保留)
         this.requestNotificationPermission();
-        let loadCount = 0;
-        const checkReady = () => {
-          loadCount++;
-          if (loadCount >= 4) {
-            this.buildIndexes();
-            this.dataReady = true;
-            this.handleRouteUpdate(this.$route);
-            setTimeout(() => this.checkDailyTasks(), 2000);
-          }
-        };
-        const safeProject = (d) => ({
-          id: d.id,
-          brandId: "",
-          title: "Untitled",
-          status: "active",
-          startDate: "",
-          endDate: "",
-          owner: "Unknown",
-          ...d.data(),
-        });
-        const safeSub = (d) => {
-          const data = d.data();
-          return {
-            id: d.id,
-            parentId: "",
-            title: "Untitled",
-            status: "setup",
-            ...data,
-            milestones: data.milestones || [],
-            events: data.events || [],
-            links: data.links || [],
-            comments: data.comments || [],
-          };
-        };
 
-        // 1. Users 與 Brands (全量)
+        // 2. [保留即時監聽] Users (使用者資料量小且變動少，適合即時)
         onSnapshot(collection(db, "users"), (s) => {
           this.users = s.docs
             .map((d) => ({ id: d.id, ...d.data() }))
             .sort((a, b) => (a.team || "").localeCompare(b.team || ""));
-          checkReady();
+          
+          // 若這是第一次載入，先標記 dataReady (避免畫面全白)
+          if(!this.dataReady) this.dataReady = true;
         });
+
+        // 3. [保留即時監聽] Brands (品牌資料量極小)
         onSnapshot(collection(db, "brands"), (s) => {
           this.brands = s.docs.map((d) => ({ id: d.id, ...d.data() }));
-          checkReady();
+          this.rebuildBrandMap();
         });
 
-        // 2. [效能優化] 母專案：只監聽 'active' (需索引)
-        const qProjects = query(
-          collection(db, "projects"),
-          where("status", "==", "active")
-        );
-        onSnapshot(qProjects, (s) => {
-          this.activeParents = s.docs.map((d) => safeProject(d));
-          this.buildIndexes();
-          checkReady();
-        });
+        // --- [修改重點] --- 
+        // 4. [效能優化] 移除原本對 projects 和 sub_projects 的 onSnapshot
+        // 改成呼叫 fetchDashboardData() 來一次性拉取資料
+        this.fetchDashboardData();
+        // ------------------
 
-        // 3. [效能優化] 子專案：只監聽 'setup' 或 'in_progress'
-        const qSubs = query(
-          collection(db, "sub_projects"),
-          where("status", "in", ["setup", "in_progress"])
-        );
-        onSnapshot(qSubs, (s) => {
-          this.activeSubs = s.docs.map((d) => safeSub(d));
-          this.buildIndexes();
-          checkReady();
-        });
-
+        // 5. [保留即時監聽] 通知中心 (必須即時，否則失去通知意義)
         this.$watch(
           () => this.currentUser?.name,
           (newVal) => {
@@ -920,12 +879,11 @@ filteredMonitorList() {
                   this.notifications = snap.docs
                     .map((d) => ({ id: d.id, ...d.data() }))
                     .sort((a, b) => new Date(b.time) - new Date(a.time));
+                  
+                  // 檢查是否有新通知並發送瀏覽器推播
                   if (this.dataReady && this.notifications.length > oldLen) {
                     const latest = this.notifications[0];
-                    if (
-                      !latest.read &&
-                      latest.sender !== this.currentUser.name
-                    ) {
+                    if (!latest.read && latest.sender !== this.currentUser.name) {
                       this.sendBrowserNotification(
                         "收到新通知",
                         `通知原因：${latest.message}`,
@@ -939,8 +897,72 @@ filteredMonitorList() {
           }
         );
       } catch (e) {
-        console.error(e);
+        console.error("Init Listeners Error:", e);
+        // 萬一出錯，至少讓畫面不要卡死
         this.dataReady = true;
+      }
+    },
+    // [效能優化] 改為手動拉取儀表板資料 (取代 onSnapshot)
+    async fetchDashboardData() {
+      if (this.isDashboardLoading) return;
+      this.isDashboardLoading = true;
+      
+      // 如果您有做 Toast 優化，這裡可以加 this.showToast('更新中', '正在同步儀表板數據...', 'info');
+
+      try {
+        // 定義資料轉換函數 (跟原本一樣)
+        const safeProject = (d) => ({
+          id: d.id,
+          brandId: "",
+          title: "Untitled",
+          status: "active",
+          startDate: "",
+          endDate: "",
+          owner: "Unknown",
+          ...d.data(),
+        });
+        const safeSub = (d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            parentId: "",
+            title: "Untitled",
+            status: "setup",
+            ...data,
+            milestones: data.milestones || [],
+            events: data.events || [],
+            links: data.links || [],
+            comments: data.comments || [],
+          };
+        };
+
+        // 1. 抓取「執行中 (active)」的母專案
+        const qProjects = query(
+          collection(db, "projects"),
+          where("status", "==", "active")
+        );
+        const snapProj = await getDocs(qProjects);
+        this.activeParents = snapProj.docs.map((d) => safeProject(d));
+
+        // 2. 抓取「規劃中 (setup) 或 執行中 (in_progress)」的子專案
+        const qSubs = query(
+          collection(db, "sub_projects"),
+          where("status", "in", ["setup", "in_progress"])
+        );
+        const snapSubs = await getDocs(qSubs);
+        this.activeSubs = snapSubs.docs.map((d) => safeSub(d));
+
+        // 3. 重建索引與畫面
+        this.buildIndexes();
+        
+        // 如果有 Toast，可以加 this.showToast('同步完成', '儀表板數據已更新', 'success');
+        console.log("儀表板數據已手動更新");
+
+      } catch (e) {
+        console.error("更新儀表板失敗", e);
+        alert("更新失敗，請檢查網路連線");
+      } finally {
+        this.isDashboardLoading = false;
       }
     },
 
@@ -948,6 +970,8 @@ filteredMonitorList() {
     async loadHistoryData() {
       if (this.isHistoryLoaded) return;
       this.isLoading = true;
+      console.log("正在下載歷史報表資料..."); // 改用 console.log
+
       try {
         const safeProject = (d) => ({
           id: d.id,
@@ -974,26 +998,39 @@ filteredMonitorList() {
           };
         };
 
-        // 抓母專案 (包含 archived 與 aborted)
+        // [效能優化] 1. 抓母專案：
+        // 規則：狀態是歸檔類 + 依照開始日倒序 + 只抓最近 100 筆
         const qHistoryProjects = query(
           collection(db, "projects"),
-          where("status", "in", ["completed", "aborted", "archived"])
+          where("status", "in", ["completed", "aborted", "archived"]),
+          orderBy("startDate", "desc"), 
+          limit(100) // ★ 限制 100 筆，省錢關鍵
         );
         const snapProj = await getDocs(qHistoryProjects);
         this.historyParents = snapProj.docs.map((d) => safeProject(d));
 
-        // 抓子專案
+        // [效能優化] 2. 抓子專案：
+        // 規則：狀態是歸檔類 + 依照結束日倒序 + 只抓最近 300 筆
         const qHistorySubs = query(
           collection(db, "sub_projects"),
-          where("status", "in", ["completed", "aborted"])
+          where("status", "in", ["completed", "aborted"]),
+          orderBy("endDate", "desc"),
+          limit(300) // ★ 限制 300 筆
         );
         const snapSubs = await getDocs(qHistorySubs);
         this.historySubs = snapSubs.docs.map((d) => safeSub(d));
 
         this.isHistoryLoaded = true;
-        this.buildIndexes(); // 重新建立索引，讓 computed 吃到新資料
+        this.buildIndexes(); // 重建索引讓畫面更新
+        console.log(`同步完成，已載入 ${this.historyParents.length} 筆歷史專案`);
+
       } catch (err) {
         console.error("補抓歸檔資料失敗", err);
+        
+        // 提示索引錯誤 (開發階段必看)
+        if (err.message.includes("index")) {
+            alert("系統提示：請打開 F12 Console，點擊 Firebase 連結以建立查詢索引 (Index)");
+        }
       } finally {
         this.isLoading = false;
       }
@@ -1064,9 +1101,7 @@ filteredMonitorList() {
             // ... (原本的邏輯: 計算延遲等) ...
 
             // [修改] 記得確保這裡有加入 brand (上一各步驟我們加過了，這裡保留)
-            if (sp.status !== 'completed' && sp.status !== 'aborted' && sp.status !== 'archived') {
-        ownedList.push({ brand: item.brand, parent: item.parent, sub: sp });
-    }
+            ownedList.push({ brand: item.brand, parent: item.parent, sub: sp });
           }
         }
       });
