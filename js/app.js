@@ -51,6 +51,34 @@ const DataFactory = {
   }),
 };
 
+// 1. 定義路由組件 (為了不改寫 HTML，我們用一個空的「佔位組件」即可)
+const DummyComponent = { template: "<div></div>" };
+
+// 2. 定義網址規則
+const routes = [
+  // 首頁 -> 對應 dashboard
+  { path: "/", name: "dashboard", component: DummyComponent },
+
+  // 歷史報表
+  { path: "/report", name: "report", component: DummyComponent },
+
+  // 工作區
+  { path: "/workspace", name: "workspace", component: DummyComponent },
+
+  // 母專案詳情 (:pid 是動態參數，例如 P12345)
+  { path: "/project/:pid", name: "parent", component: DummyComponent },
+
+  // 子專案詳情
+  { path: "/project/:pid/sub/:sid", name: "sub", component: DummyComponent },
+];
+
+// 3. 建立 Router 實體
+const router = VueRouter.createRouter({
+  // 使用 Hash 模式 (網址會像 index.html#/project/123)，這樣不用設定 Server
+  history: VueRouter.createWebHashHistory(),
+  routes,
+});
+
 const app = createApp({
   data() {
     return {
@@ -189,6 +217,9 @@ const app = createApp({
     };
   },
   async mounted() {
+    router.afterEach((to) => {
+      this.handleRouteUpdate(to);
+    });
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         this.userParams = user;
@@ -742,6 +773,14 @@ const app = createApp({
         this.loadHistoryData();
       }
     },
+
+    // [New] 監聽資料準備好沒 (針對重新整理網頁的情況)
+    dataReady(isReady) {
+      if (isReady) {
+        // 資料載入完畢後，立刻根據目前網址設定畫面
+        this.handleRouteUpdate(this.$route);
+      }
+    },
   },
   methods: {
     requestNotificationPermission() {
@@ -799,6 +838,7 @@ const app = createApp({
           if (loadCount >= 4) {
             this.buildIndexes();
             this.dataReady = true;
+            this.handleRouteUpdate(this.$route);
             setTimeout(() => this.checkDailyTasks(), 2000);
           }
         };
@@ -1649,34 +1689,32 @@ const app = createApp({
       });
     },
     goBack() {
-      const prev = this.historyStack.pop();
-      if (prev) {
-        this.currentView = prev.view;
-        if (prev.view === "parent_detail" && prev.parentId) {
-          this.currentParentProject = this.indexedParentMap[prev.parentId];
-          this.detailTab = "overview";
-        }
-      } else {
-        this.currentView = "dashboard";
-      }
+      // [修改] 使用瀏覽器的上一頁功能
+      this.$router.back();
+
+      // 原本的 historyStack 邏輯可以全部刪除，因為 Vue Router 已經幫您管理歷史紀錄了！
     },
     selectParentProject(proj) {
-      this.addToHistory();
-      this.currentParentProject = proj;
-      this.currentView = "parent_detail";
-      this.detailTab = "overview";
+      // [修改] 改用路由跳轉
+      this.$router.push({ name: "parent", params: { pid: proj.id } });
+
+      // 下面這幾行可以拿掉了，因為 handleRouteUpdate 會幫您做
+      // this.addToHistory();
+      // this.currentParentProject = proj;
+      // this.currentView = "parent_detail";
     },
     selectSubProject(sp, parent) {
-      this.addToHistory();
-      this.currentParentProject = parent;
-      this.currentSubProject = sp;
-      this.currentView = "sub_project_detail";
-      this.setupForm = {
-        startDate: new Date().toISOString().split("T")[0],
-        endDate: "",
-        milestones: [],
-      };
-      this.detailTab = "events";
+      // [修改] 改用路由跳轉
+      this.$router.push({
+        name: "sub",
+        params: { pid: parent.id, sid: sp.id },
+      });
+
+      // 下面這幾行可以拿掉了
+      // this.addToHistory();
+      // this.currentParentProject = parent;
+      // this.currentSubProject = sp;
+      // this.currentView = "sub_project_detail";
     },
     openCalendarSideEvent(ev) {
       this.calendarSideEvent = ev;
@@ -2394,7 +2432,101 @@ const app = createApp({
         alert("工時修正失敗");
       }
     },
+
+    navigateTo(pageName) {
+      this.showMobileSidebar = false; // 關閉手機側邊欄
+
+      // 透過 Router 去改變網址 -> 網址變了 -> 觸發上面的 handleRouteUpdate -> 畫面才會變
+      if (pageName === "dashboard") this.$router.push("/");
+      if (pageName === "report") this.$router.push("/report");
+      if (pageName === "workspace") this.$router.push("/workspace");
+    },
+    // 在 methods: { ... } 裡面，請直接替換掉原本的 handleRouteUpdate
+
+    // [最終修正版] 路由處理核心
+    async handleRouteUpdate(route) {
+      // 如果資料還沒準備好，先不做事，等 initListeners 裡的 checkReady 呼叫
+      if (!this.dataReady) return;
+
+      console.log("路由同步畫面:", route.name, route.params);
+
+      switch (route.name) {
+        case "dashboard":
+          this.currentView = "dashboard";
+          this.selectedDashboardBrand = "all";
+          break; // 記得要 break
+
+        case "report":
+          this.currentView = "history_report";
+          this.loadHistoryData();
+          break;
+
+        case "workspace":
+          this.currentView = "my_workspace";
+          this.workspaceTab = "tasks";
+          break;
+
+        case "parent":
+          const pid = route.params.pid;
+          const parent = this.indexedParentMap[pid];
+
+          if (parent) {
+            this.currentParentProject = parent;
+            this.currentView = "parent_detail";
+            this.detailTab = "overview";
+
+            if (!this.activeParents.find((p) => p.id === pid)) {
+              await this.loadHistoryData();
+              // 重新綁定確保拿到資料
+              this.currentParentProject = this.indexedParentMap[pid];
+            }
+          } else {
+            console.warn("找不到母專案 ID:", pid);
+            // 只有當確定不是資料延遲時才跳轉
+            if (this.isHistoryLoaded) this.$router.replace("/");
+          }
+          break;
+
+        case "sub":
+          const subPid = route.params.pid;
+          const sid = route.params.sid;
+          const p = this.indexedParentMap[subPid];
+
+          // 嘗試從活躍或歷史清單找
+          let s = this.activeSubs.find((sub) => sub.id === sid);
+          if (!s) {
+            if (!this.isHistoryLoaded) await this.loadHistoryData();
+            s = this.historySubs.find((sub) => sub.id === sid);
+          }
+
+          if (p && s) {
+            this.currentParentProject = p;
+            this.currentSubProject = s;
+            this.currentView = "sub_project_detail";
+          } else {
+            console.warn("找不到子專案");
+            if (this.isHistoryLoaded) this.$router.replace("/");
+          }
+          break;
+
+        default:
+          // 預設回首頁
+          if (this.currentView !== "dashboard") {
+            this.currentView = "dashboard";
+          }
+          break;
+      }
+    },
+    navigateTo(pageName) {
+      this.showMobileSidebar = false; // 關閉手機側邊欄
+
+      // 透過 Router 去改變網址 -> 網址變了 -> 觸發上面的 handleRouteUpdate -> 畫面才會變
+      if (pageName === "dashboard") this.$router.push("/");
+      if (pageName === "report") this.$router.push("/report");
+      if (pageName === "workspace") this.$router.push("/workspace");
+    },
   },
 });
 
+app.use(router); // 掛載路由
 app.mount("#app");
