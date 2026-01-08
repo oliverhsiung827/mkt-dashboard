@@ -2597,30 +2597,35 @@ const app = createApp({
         case "sub":
           const subPid = route.params.pid;
           const sid = route.params.sid;
-          const p = this.indexedParentMap[subPid];
 
-          // 嘗試從活躍或歷史清單找
+          // 1. 先試著在現有資料 (Active) 中尋找
+          let p = this.indexedParentMap[subPid];
           let s = this.activeSubs.find((sub) => sub.id === sid);
-          if (!s) {
-            if (!this.isHistoryLoaded) await this.loadHistoryData();
+
+          // 2. 如果「母專案」或「子專案」其中一個找不到，且歷史資料尚未載入 -> 去下載！
+          if ((!p || !s) && !this.isHistoryLoaded) {
+            console.log("資料缺漏，嘗試載入歷史資料...");
+            await this.loadHistoryData();
+
+            // ★★★ 關鍵修正：下載完後，必須「重新」抓取變數，不然 p 永遠是 undefined ★★★
+            p = this.indexedParentMap[subPid];
+
+            // 如果 s 本來沒找到，現在去歷史陣列找找看
+            if (!s) s = this.historySubs.find((sub) => sub.id === sid);
+          } else if (!s) {
+            // 如果歷史資料已經載入過了(isHistoryLoaded=true)，但 active 沒找到，就只搜 history
             s = this.historySubs.find((sub) => sub.id === sid);
           }
 
+          // 3. 最終檢查：兩個都要有，才能顯示詳情
           if (p && s) {
             this.currentParentProject = p;
             this.currentSubProject = s;
             this.detailTab = "events";
             this.currentView = "sub_project_detail";
           } else {
-            console.warn("找不到子專案");
-            if (this.isHistoryLoaded) this.$router.replace("/");
-          }
-          break;
-
-        default:
-          // 預設回首頁
-          if (this.currentView !== "dashboard") {
-            this.currentView = "dashboard";
+            console.warn("找不到子專案或其母專案，導回首頁");
+            this.$router.replace("/");
           }
           break;
       }
