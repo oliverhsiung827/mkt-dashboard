@@ -95,7 +95,8 @@
     </div>
 
     <div id="app" class="h-full w-full flex flex-col" v-cloak>
-        <audio id="notification-sound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+        <audio id="notification-sound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
+            preload="auto"></audio>
 
         <div v-if="userParams && !dataReady"
             class="fixed inset-0 z-[10000] bg-slate-50 flex flex-col items-center justify-center">
@@ -471,10 +472,17 @@
                         <div class="bg-white rounded-xl shadow-sm border border-slate-200 mb-8 w-full overflow-hidden">
                             <div
                                 class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                                <h3 class="font-bold text-slate-700"><i
-                                        class="fas fa-satellite-dish mr-2 text-indigo-500"></i> 執行監控 </h3><button
-                                    v-if="filterStatus!=='all'" @click="filterStatus='all'"
-                                    class="text-xs text-indigo-600 hover:underline">顯示全部</button>
+                                <div class="flex items-center gap-4">
+                                    <h3 class="font-bold text-slate-700"><i
+                                            class="fas fa-satellite-dish mr-2 text-indigo-500"></i> 執行監控 </h3>
+                                    <select v-model="filterStatus"
+                                        class="border border-slate-300 rounded-lg px-2 py-1 text-xs bg-white font-bold text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <option value="all">顯示全部 </option>
+                                        <option value="normal">🟢 正常 </option>
+                                        <option value="lag">🟠 落後 </option>
+                                        <option value="delay">🔴 延遲 </option>
+                                    </select>
+                                </div>
                             </div>
                             <div class="overflow-x-auto w-full">
                                 <table class="w-full text-sm text-left">

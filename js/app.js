@@ -442,10 +442,13 @@ const app = createApp({
       });
       return list;
     },
-    filteredMonitorList() {
+filteredMonitorList() {
+      // 1. 基礎篩選：只抓出「執行中 (in_progress)」的案件
       const candidates = this.allSubProjects.filter(
         (i) => i.branch.status === "in_progress"
       );
+
+      // 2. 排序 (保持原本邏輯：母案日期 -> 母案標題 -> 子案日期)
       candidates.sort((a, b) => {
         const dateA = new Date(a.parent.startDate || "1970-01-01");
         const dateB = new Date(b.parent.startDate || "1970-01-01");
@@ -456,12 +459,14 @@ const app = createApp({
         const subEndB = new Date(b.branch.endDate || "9999-12-31");
         return subEndA - subEndB;
       });
+
+      // 3. 根據下拉選單進行狀態篩選
       if (this.filterStatus === "all") return candidates;
-      if (this.filterStatus === "delayed")
-        return candidates.filter(
-          (i) => this.getProjectHealth(i.branch).type === "delay"
-        );
-      return candidates;
+
+      // 比對專案健康度 (type 會是 'delay', 'lag', 'normal')
+      return candidates.filter(
+        (i) => this.getProjectHealth(i.branch).type === this.filterStatus
+      );
     },
     scopedStats() {
       let activeCount = 0,
