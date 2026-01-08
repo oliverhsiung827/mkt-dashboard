@@ -5,7 +5,7 @@
     <title>Redirecting...</title>
     <script type="text/javascript">
       // 因為您的網址是 username.github.io (根目錄)，所以設為 0
-      var pathSegmentsToKeep = 0;
+      var pathSegmentsToKeep = 1;
 
       var l = window.location;
       sessionStorage.redirect = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
@@ -13,7 +13,7 @@
       
       l.replace(
         l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
-        l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/' +
+        l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/#/' +
         l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
         (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
         l.hash
