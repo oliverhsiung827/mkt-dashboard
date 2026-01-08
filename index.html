@@ -95,8 +95,7 @@
     </div>
 
     <div id="app" class="h-full w-full flex flex-col" v-cloak>
-        <audio id="notification-sound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_1720817-*024.mp3"
-            preload="auto"></audio>
+        <audio id="notification-sound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
         <div v-if="userParams && !dataReady"
             class="fixed inset-0 z-[10000] bg-slate-50 flex flex-col items-center justify-center">
@@ -108,7 +107,7 @@
             <div class="bg-white/95 backdrop-blur-sm p-10 rounded-2xl shadow-2xl w-[400px] fade-in">
                 <div class="text-center mb-8">
                     <h1 class="text-2xl font-bold text-slate-800">上洋行銷部 專案管理系統</h1>
-                    <p class="text-slate-500 text-sm mt-2">v1.6 2026/01/07更新</p>
+                    <p class="text-slate-500 text-sm mt-2">v1.7 2026/01/08更新</p>
                 </div>
                 <div v-if="authError" class="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-6 flex items-center"><i
                         class="fas fa-exclamation-circle mr-2"></i>( T__T) 嗚嗚，我也想讓進去，但這個帳號或密碼我不認識...</div>

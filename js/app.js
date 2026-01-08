@@ -2502,6 +2502,7 @@ const app = createApp({
           if (p && s) {
             this.currentParentProject = p;
             this.currentSubProject = s;
+            this.detailTab = 'events';
             this.currentView = "sub_project_detail";
           } else {
             console.warn("找不到子專案");
