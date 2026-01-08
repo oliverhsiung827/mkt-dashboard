@@ -220,7 +220,6 @@ const app = createApp({
     };
   },
   async mounted() {
-    window.db = db;
     router.afterEach((to) => {
       this.handleRouteUpdate(to);
     });
@@ -1552,7 +1551,7 @@ const app = createApp({
       };
       this.showEventModal = true;
     },
-async saveEvent() {
+    async saveEvent() {
       // 1. 權限檢查
       if (this.currentSubProject.currentHandler !== this.currentUser.name)
         return;
@@ -1620,18 +1619,21 @@ async saveEvent() {
       // 6. 將日誌推入本地陣列
       if (!this.currentSubProject.events) this.currentSubProject.events = [];
       this.currentSubProject.events.push(newEvent);
-      
+
       const oldHandler = this.currentSubProject.currentHandler;
       this.currentSubProject.currentHandler = nextHandler;
 
       // ==========================================
       // [優化關鍵] 計算總工時並寫入 (新增部分)
       // ==========================================
-      const newTotalHours = this.currentSubProject.events.reduce((sum, ev) => sum + Number(ev.hours || 0), 0);
+      const newTotalHours = this.currentSubProject.events.reduce(
+        (sum, ev) => sum + Number(ev.hours || 0),
+        0
+      );
       // 強制進位到小數點第一位
       const roundedTotal = Math.round(newTotalHours * 10) / 10;
       // 更新本地資料 (讓畫面立刻變)
-      this.currentSubProject.totalHours = roundedTotal; 
+      this.currentSubProject.totalHours = roundedTotal;
       // ==========================================
 
       // 7. 里程碑匹配與結案邏輯判斷
@@ -1649,7 +1651,7 @@ async saveEvent() {
           ms.diffDays = Math.floor(
             (new Date(this.eventForm.date) - new Date(ms.date)) / 86400000
           );
-          
+
           // 如果是最後一個節點 -> 觸發結案檢查
           if (ms.id === lastMilestone.id) {
             const today = new Date(this.eventForm.date);
@@ -1663,7 +1665,7 @@ async saveEvent() {
               this.currentSubProject.events.pop();
               this.currentSubProject.currentHandler = oldHandler;
               ms.isCompleted = false;
-              
+
               // 暫存資料傳給 Modal
               this.tempCompletionData = {
                 finalDelay,
@@ -1671,13 +1673,12 @@ async saveEvent() {
                 milestoneId: ms.id,
                 nextHandler,
               };
-              
+
               this.showEventModal = false;
               this.modalMode = "sub_delay_complete";
               this.delayForm = { reason: "人力不足", remark: "" };
               this.showDelayReasonModal = true;
               return; // ★ 這裡直接 Return，等待 Modal 確認後再存檔
-
             } else {
               // B. 準時完成：直接結案
               isProjectCompleted = true;
@@ -1698,9 +1699,9 @@ async saveEvent() {
           events: this.currentSubProject.events,
           currentHandler: nextHandler,
           milestones: this.currentSubProject.milestones,
-          
+
           // [優化關鍵] 將算好的總工時存入資料庫
-          totalHours: roundedTotal 
+          totalHours: roundedTotal,
         };
 
         if (isHandoff) {
@@ -1731,7 +1732,6 @@ async saveEvent() {
           this.historySubs.push(completedProject);
           this.buildIndexes();
         }
-
       } catch (e) {
         console.error("Sync Failed", e);
         alert("存檔失敗，請檢查網路");
@@ -1948,19 +1948,19 @@ async saveEvent() {
       p.expanded = !p.expanded;
     },
     // [修正] 底層計算函式：強制進位到小數點第一位
-calcSubProjectHours(sp) {
-  // [優化] 如果資料庫裡已經有算好的欄位，直接回傳 (CPU 複雜度從 O(N) 降為 O(1))
-  if (sp.totalHours !== undefined) {
-      return sp.totalHours;
-  }
+    calcSubProjectHours(sp) {
+      // [優化] 如果資料庫裡已經有算好的欄位，直接回傳 (CPU 複雜度從 O(N) 降為 O(1))
+      if (sp.totalHours !== undefined) {
+        return sp.totalHours;
+      }
 
-  // [相容性] 萬一遇到漏網之魚(舊資料)，還是用舊方法算一下，避免顯示 0
-  const total = (sp.events || []).reduce(
-    (sum, ev) => sum + Number(ev.hours || 0),
-    0
-  );
-  return Math.round(total * 10) / 10;
-},
+      // [相容性] 萬一遇到漏網之魚(舊資料)，還是用舊方法算一下，避免顯示 0
+      const total = (sp.events || []).reduce(
+        (sum, ev) => sum + Number(ev.hours || 0),
+        0
+      );
+      return Math.round(total * 10) / 10;
+    },
     getMilestoneName(mid) {
       return (
         this.currentSubProject?.milestones?.find((m) => m.id === mid)?.title ||
@@ -2509,26 +2509,29 @@ calcSubProjectHours(sp) {
       }
     },
     // [Admin] 修改工作日誌內容 (工時/內容)
-async updateEventLog() {
+    async updateEventLog() {
       if (this.currentUser.role !== "admin") return;
 
       try {
         // [優化] ★★★ 重新計算總工時 ★★★
-        const newTotalHours = this.currentSubProject.events.reduce((sum, ev) => sum + Number(ev.hours || 0), 0);
+        const newTotalHours = this.currentSubProject.events.reduce(
+          (sum, ev) => sum + Number(ev.hours || 0),
+          0
+        );
         const roundedTotal = Math.round(newTotalHours * 10) / 10;
         this.currentSubProject.totalHours = roundedTotal; // 本地更新
 
         await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), {
           events: this.currentSubProject.events,
-          
+
           // [優化] ★★★ 寫入資料庫 ★★★
-          totalHours: roundedTotal
+          totalHours: roundedTotal,
         });
-        
-        this.showToast('更新成功', '工時與日誌已修正', 'success');
+
+        this.showToast("更新成功", "工時與日誌已修正", "success");
       } catch (e) {
         console.error(e);
-        this.showToast('修正失敗', e.message, 'error');
+        this.showToast("修正失敗", e.message, "error");
       }
     },
 
@@ -2567,22 +2570,27 @@ async updateEventLog() {
 
         case "parent":
           const pid = route.params.pid;
-          const parent = this.indexedParentMap[pid];
 
+          // 1. 先嘗試在現有資料中尋找
+          let parent = this.indexedParentMap[pid];
+
+          // 2. [修正] 如果找不到，且歷史資料尚未載入，就去下載歷史資料
+          if (!parent && !this.isHistoryLoaded) {
+            console.log("Active list 中找不到母專案，嘗試載入歷史資料...");
+            await this.loadHistoryData();
+            // loadHistoryData 會觸發 buildIndexes，所以這裡再次讀取 map
+            parent = this.indexedParentMap[pid];
+          }
+
+          // 3. 最終檢查：現在找得到了嗎？
           if (parent) {
             this.currentParentProject = parent;
             this.currentView = "parent_detail";
             this.detailTab = "overview";
-
-            if (!this.activeParents.find((p) => p.id === pid)) {
-              await this.loadHistoryData();
-              // 重新綁定確保拿到資料
-              this.currentParentProject = this.indexedParentMap[pid];
-            }
           } else {
-            console.warn("找不到母專案 ID:", pid);
-            // 只有當確定不是資料延遲時才跳轉
-            if (this.isHistoryLoaded) this.$router.replace("/");
+            console.warn("找不到母專案 ID (已搜尋過歷史資料):", pid);
+            // 真的找不到才踢回首頁
+            this.$router.replace("/");
           }
           break;
 
