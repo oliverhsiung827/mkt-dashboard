@@ -1593,10 +1593,21 @@ const app = createApp({
           updates.finalDelayDays = 0;
           updates.completedDate = this.eventForm.date;
         }
+
         await updateDoc(
           doc(db, "sub_projects", this.currentSubProject.id),
           updates
         );
+
+        // [New] ★★★ 這裡是被修改的地方 ★★★
+        // 如果結案了，手動把它加到歷史陣列，避免它從畫面消失
+        if (isProjectCompleted) {
+          // 複製一份當前的專案資料 (包含最新的 updates)
+          const completedProject = { ...this.currentSubProject, ...updates };
+          this.historySubs.push(completedProject);
+          // 重建索引，讓母專案列表能馬上抓到它
+          this.buildIndexes();
+        }
       } catch (e) {
         console.error("Sync Failed", e);
       }
@@ -1731,6 +1742,15 @@ const app = createApp({
             delayRemark: this.delayForm.remark || "",
           });
           this.currentSubProject.status = "aborted";
+        }
+        if (
+          ["completed", "archived", "aborted"].includes(
+            this.currentSubProject.status
+          )
+        ) {
+          // 確保物件已經是最新的狀態
+          this.historySubs.push({ ...this.currentSubProject });
+          this.buildIndexes();
         }
         alert("資料已儲存");
         this.showDelayReasonModal = false;
@@ -2050,49 +2070,51 @@ const app = createApp({
     },
 
     // [New] 計算特定里程碑的累計工時
-// 在 methods: { ... } 裡面
+    // 在 methods: { ... } 裡面
 
     // [修改] 計算特定里程碑的累計工時 (邏輯：計算 上一個節點 ~ 這個節點 之間的所有工時)
     getMilestoneHours(branch, milestoneId) {
-        if (!branch || !branch.events || !branch.milestones) return 0;
+      if (!branch || !branch.events || !branch.milestones) return 0;
 
-        // 1. 先把里程碑依照日期排序，確保順序正確
-        const sortedMs = [...branch.milestones].sort((a, b) => new Date(a.date) - new Date(b.date));
+      // 1. 先把里程碑依照日期排序，確保順序正確
+      const sortedMs = [...branch.milestones].sort(
+        (a, b) => new Date(a.date) - new Date(b.date)
+      );
 
-        // 2. 找到「目前這個節點」在陣列中的位置索引 (index)
-        const currentIdx = sortedMs.findIndex(m => m.id === milestoneId);
-        if (currentIdx === -1) return 0; // 找不到此節點
+      // 2. 找到「目前這個節點」在陣列中的位置索引 (index)
+      const currentIdx = sortedMs.findIndex((m) => m.id === milestoneId);
+      if (currentIdx === -1) return 0; // 找不到此節點
 
-        // 3. 定義時間區間 (Range)
-        // 結束時間：當然就是「這個節點」的日期
-        const currentEndDate = new Date(sortedMs[currentIdx].date);
-        currentEndDate.setHours(23, 59, 59, 999); // 包含當天
+      // 3. 定義時間區間 (Range)
+      // 結束時間：當然就是「這個節點」的日期
+      const currentEndDate = new Date(sortedMs[currentIdx].date);
+      currentEndDate.setHours(23, 59, 59, 999); // 包含當天
 
-        // 開始時間：要看有沒有「上一個節點」
-        let prevEndDate;
-        if (currentIdx === 0) {
-            // 如果這是「第一個」節點，那開始時間就是無限早 (或是專案開始日)
-            // 這裡設為 1970 年，確保所有在這個節點之前的工時都會被算進來
-            prevEndDate = new Date('1970-01-01');
-        } else {
-            // 如果前面還有節點，開始時間就是「上一個節點」的日期
-            prevEndDate = new Date(sortedMs[currentIdx - 1].date);
-            prevEndDate.setHours(23, 59, 59, 999); // 設定為上個節點當天的最後一秒
+      // 開始時間：要看有沒有「上一個節點」
+      let prevEndDate;
+      if (currentIdx === 0) {
+        // 如果這是「第一個」節點，那開始時間就是無限早 (或是專案開始日)
+        // 這裡設為 1970 年，確保所有在這個節點之前的工時都會被算進來
+        prevEndDate = new Date("1970-01-01");
+      } else {
+        // 如果前面還有節點，開始時間就是「上一個節點」的日期
+        prevEndDate = new Date(sortedMs[currentIdx - 1].date);
+        prevEndDate.setHours(23, 59, 59, 999); // 設定為上個節點當天的最後一秒
+      }
+
+      // 4. 開始篩選並加總日誌
+      const total = branch.events.reduce((sum, ev) => {
+        const evDate = new Date(ev.date);
+
+        // 核心邏輯：日誌日期 必須「大於」上個節點 且 「小於等於」這個節點
+        // (也就是夾在兩個節點中間的工時)
+        if (evDate > prevEndDate && evDate <= currentEndDate) {
+          return sum + Number(ev.hours || 0);
         }
+        return sum;
+      }, 0);
 
-        // 4. 開始篩選並加總日誌
-        const total = branch.events.reduce((sum, ev) => {
-            const evDate = new Date(ev.date);
-            
-            // 核心邏輯：日誌日期 必須「大於」上個節點 且 「小於等於」這個節點
-            // (也就是夾在兩個節點中間的工時)
-            if (evDate > prevEndDate && evDate <= currentEndDate) {
-                return sum + Number(ev.hours || 0);
-            }
-            return sum;
-        }, 0);
-
-        return Math.round(total * 10) / 10;
+      return Math.round(total * 10) / 10;
     },
     // ... 其他 methods ...
 
