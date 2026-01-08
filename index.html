@@ -1411,15 +1411,26 @@
                                 </div>
                                 <div v-else>
                                     <div class="mb-8">
-                                        <h3 class="font-bold text-slate-700 mb-4 text-sm uppercase tracking-wide">預定里程碑
-                                        </h3>
+                                        <div class="flex justify-between items-center mb-4">
+                                            <h3 class="font-bold text-slate-700 text-sm uppercase tracking-wide">預定里程碑
+                                            </h3>
+
+                                            <button v-if="currentUser.role === 'admin'" @click="addMilestone"
+                                                class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded transition shadow-sm">
+                                                <i class="fas fa-plus mr-1"></i> 新增節點
+                                            </button>
+                                        </div>
+
                                         <div class="relative pl-6 space-y-0">
                                             <div v-if="sortedMilestones.length===0"
                                                 class="text-slate-400 text-sm italic">無設定里程碑</div>
+
                                             <div v-for="(ms, index) in sortedMilestones" :key="ms.id"
                                                 class="relative pl-10 pb-8 group"
                                                 :class="{'last-node': index === sortedMilestones.length - 1}">
+
                                                 <div class="node-line"></div>
+
                                                 <div class="absolute left-0 top-1 w-8 h-8 rounded-full border-4 shadow-sm flex items-center justify-center bg-white"
                                                     :class="ms.isCompleted ? 'border-emerald-500 text-emerald-500' : (isMilestoneOverdue(ms) ? 'border-orange-400 text-orange-500' : 'border-slate-300 text-slate-300')">
                                                     <i v-if="ms.isCompleted" class="fas fa-check text-xs"></i>
@@ -1427,32 +1438,60 @@
                                                         class="fas fa-exclamation text-xs"></i>
                                                     <div v-else class="w-2 h-2 rounded-full bg-current"></div>
                                                 </div>
-                                                <div class="bg-white border rounded-lg p-4 shadow-sm flex justify-between items-center"
+
+                                                <div class="bg-white border rounded-lg p-4 shadow-sm flex justify-between items-center relative"
                                                     :class="ms.isCompleted ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200'">
+
+                                                    <button v-if="currentUser.role === 'admin'"
+                                                        @click="deleteMilestone(ms.id)"
+                                                        class="absolute top-2 right-2 text-slate-300 hover:text-red-500 transition px-2"
+                                                        title="刪除節點 (Admin)">
+                                                        <i class="fas fa-trash-alt"></i>
+                                                    </button>
+
                                                     <div>
-                                                        <div class="font-bold text-slate-800"
-                                                            :class="ms.isCompleted?'line-through text-slate-400':''">{{
-                                                            ms.title }}</div>
+                                                        <div v-if="currentUser.role === 'admin'" class="mb-1">
+                                                            <input type="text" v-model="ms.title"
+                                                                @change="updateMilestone"
+                                                                class="font-bold text-slate-800 bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-500 outline-none w-full"
+                                                                title="點擊修改標題">
+                                                        </div>
+                                                        <div v-else class="font-bold text-slate-800"
+                                                            :class="ms.isCompleted?'line-through text-slate-400':''">
+                                                            {{ ms.title }}
+                                                        </div>
+
                                                         <div class="text-xs text-slate-500 mt-1 flex items-center">
-                                                            <i class="far fa-calendar-alt mr-1"></i>
+                                                            <i class="far fa-calendar-alt mr-2"></i>
+
                                                             <input type="date" v-model="ms.date"
                                                                 @change="updateMilestone"
                                                                 :disabled="currentUser.role !== 'admin'"
                                                                 class="bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-500 outline-none text-slate-600 font-mono text-xs w-24 mr-1 disabled:border-none disabled:text-slate-500 disabled:bg-transparent transition-colors hover:border-indigo-300"
-                                                                title="節點日期 (Admin可編輯)">
+                                                                title="預定日期 (Admin可改)">
+
                                                             <span v-if="ms.isCompleted"
-                                                                class="ml-2 text-emerald-600 font-bold">(完成於 {{
-                                                                ms.completedDate }})</span>
+                                                                class="ml-2 text-emerald-600 font-bold">(已完成)</span>
                                                             <span v-else-if="isMilestoneOverdue(ms)"
                                                                 class="ml-2 text-orange-500 font-bold">已落後 {{
                                                                 getDaysLate(ms.date) }} 天 (警示)</span>
                                                         </div>
                                                     </div>
-                                                    <div v-if="ms.isCompleted" class="text-right">
+
+                                                    <div v-if="ms.isCompleted" class="text-right mt-4 sm:mt-0">
+
+                                                        <div class="mb-1 text-xs text-slate-500">
+                                                            <span class="mr-1">完成於:</span>
+                                                            <input type="date" v-model="ms.completedDate"
+                                                                @change="updateMilestone"
+                                                                :disabled="currentUser.role !== 'admin'"
+                                                                class="bg-transparent border-b border-dashed border-slate-300 focus:border-emerald-500 outline-none text-emerald-700 font-bold font-mono text-xs w-24 text-right disabled:border-none disabled:text-emerald-600 disabled:bg-transparent hover:border-emerald-300"
+                                                                title="實際完成日 (Admin可改)">
+                                                        </div>
+
                                                         <div class="mb-1">
                                                             <span
-                                                                class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100"
-                                                                title="此階段累計工時">
+                                                                class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
                                                                 <i class="fas fa-hammer mr-1"></i>{{
                                                                 getMilestoneHours(currentSubProject, ms.id) }} h
                                                             </span>
@@ -1460,17 +1499,13 @@
 
                                                         <div>
                                                             <span v-if="ms.diffDays < 0"
-                                                                class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded font-bold">
-                                                                提早 {{ Math.abs(ms.diffDays) }} 天
-                                                            </span>
+                                                                class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded font-bold">提早
+                                                                {{ Math.abs(ms.diffDays) }} 天</span>
                                                             <span v-else-if="ms.diffDays > 0"
-                                                                class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">
-                                                                延遲 {{ ms.diffDays }} 天
-                                                            </span>
+                                                                class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold">延遲
+                                                                {{ ms.diffDays }} 天</span>
                                                             <span v-else
-                                                                class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">
-                                                                準時完成
-                                                            </span>
+                                                                class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded font-bold">準時完成</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1524,8 +1559,20 @@
                                                             }}
                                                         </div>
                                                     </td>
-                                                    <td class="px-6 py-3 text-center font-bold text-blue-600">{{
-                                                        ev.hours }} h</td>
+                                                    <td class="px-6 py-3 text-center font-bold text-blue-600">
+
+                                                        <div v-if="currentUser.role === 'admin'"
+                                                            class="flex items-center justify-center">
+                                                            <input type="number" v-model.number="ev.hours"
+                                                                @change="updateEventLog" step="0.5"
+                                                                class="w-16 text-center bg-transparent border-b border-dashed border-blue-300 focus:border-blue-600 outline-none text-blue-600 font-bold"
+                                                                title="修正工時 (Admin)">
+                                                            <span class="ml-1 text-xs text-blue-400">h</span>
+                                                        </div>
+
+                                                        <span v-else>{{ ev.hours }} h</span>
+
+                                                    </td>
                                                     <td class="px-6 py-3">
                                                         <span v-if="ev.matchedMilestoneId"
                                                             class="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-700 border border-emerald-200">
