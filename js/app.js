@@ -1064,7 +1064,9 @@ filteredMonitorList() {
             // ... (原本的邏輯: 計算延遲等) ...
 
             // [修改] 記得確保這裡有加入 brand (上一各步驟我們加過了，這裡保留)
-            ownedList.push({ brand: item.brand, parent: item.parent, sub: sp });
+            if (sp.status !== 'completed' && sp.status !== 'aborted' && sp.status !== 'archived') {
+        ownedList.push({ brand: item.brand, parent: item.parent, sub: sp });
+    }
           }
         }
       });
