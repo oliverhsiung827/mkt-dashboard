@@ -96,12 +96,10 @@
                 <div v-if="authError" class="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-6 flex items-center"><i
                         class="fas fa-exclamation-circle mr-2"></i>( T__T) 嗚嗚，我也想讓進去，但這個帳號或密碼我不認識...</div>
                 <div class="space-y-5">
-                    <input v-model="authForm.email" type="email"
-                        @keyup.enter="handleAuth"
+                    <input v-model="authForm.email" type="email" @keyup.enter="handleAuth"
                         class="w-full border rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="Email">
-                    <input v-model="authForm.password" type="password"
-                        @keyup.enter="handleAuth"
+                    <input v-model="authForm.password" type="password" @keyup.enter="handleAuth"
                         class="w-full border rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="Password">
                     <div v-if="isRegisterMode" class="space-y-5 pt-2 border-t border-slate-100 fade-in">
@@ -284,7 +282,7 @@
                         <div class="px-2 mt-2 flex-1 overflow-y-auto no-scrollbar" v-show="!isSidebarCollapsed">
                             <div class="flex justify-between items-center px-3 mb-2">
                                 <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">品牌專案</span>
-                                <button @click="addBrand"
+                                <button v-if="currentUser.role === 'admin'" @click="addBrand"
                                     class="text-slate-500 hover:text-white text-xs bg-slate-800 w-5 h-5 rounded flex items-center justify-center transition">
                                     <i class="fas fa-plus"></i>
                                 </button>
@@ -1009,11 +1007,28 @@
                                         class="ml-2 bg-emerald-100 text-emerald-700 text-sm px-2 py-0.5 rounded align-middle font-medium">已歸檔</span>
                                 </h2>
                                 <div class="mt-2 flex items-center gap-4 text-sm text-slate-500">
+
                                     <span
-                                        class="bg-slate-100 px-2 py-0.5 rounded font-mono text-xs border border-slate-200">ID:
-                                        {{ currentParentProject.id.substring(0,8) }}</span>
-                                    <span class="flex items-center"><i class="far fa-calendar-alt mr-1.5"></i> {{
-                                        currentParentProject.startDate }} ~ {{ currentParentProject.endDate }}</span>
+                                        class="bg-slate-100 px-2 py-0.5 rounded font-mono text-xs border border-slate-200">
+                                        ID: {{ currentParentProject.id.substring(0,200) }}
+                                    </span>
+
+                                    <span class="flex items-center">
+                                        <i class="far fa-calendar-alt mr-2"></i>
+
+                                        <input type="date" v-model="currentParentProject.startDate"
+                                            @change="updateParentDates" :disabled="currentUser.role !== 'admin'"
+                                            class="bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-500 outline-none text-slate-600 font-mono text-xs w-24 mr-1 disabled:border-none disabled:text-slate-500 disabled:bg-transparent transition-colors hover:border-indigo-300"
+                                            title="專案開始日 (Admin可編輯)">
+
+                                        <span class="mx-1">~</span>
+
+                                        <input type="date" v-model="currentParentProject.endDate"
+                                            @change="updateParentDates" :disabled="currentUser.role !== 'admin'"
+                                            class="bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-500 outline-none text-slate-600 font-mono text-xs w-24 ml-1 disabled:border-none disabled:text-slate-500 disabled:bg-transparent transition-colors hover:border-indigo-300"
+                                            title="專案結束日 (Admin可編輯)">
+                                    </span>
+
                                     <span class="flex items-center"><i class="far fa-user-circle mr-1.5"></i> {{
                                         currentParentProject.owner }}</span>
                                 </div>
@@ -1034,6 +1049,10 @@
                                     @click.stop="openBranchModal(currentParentProject.id)"
                                     class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md transition flex items-center">
                                     <i class="fas fa-plus mr-2"></i> 開立子專案
+                                </button>
+                                <button v-if="currentUser.role === 'admin'" @click="adminDeleteParent"
+                                    class="bg-red-600 hover:bg-red-700 text-white border border-red-700 px-4 py-2 rounded-lg font-bold text-sm transition flex items-center shadow-sm ml-2">
+                                    <i class="fas fa-trash-alt mr-2"></i> 強制刪除
                                 </button>
                             </div>
                         </div>
@@ -1226,6 +1245,17 @@
                                         <i class="fas fa-clock mr-1"></i> 延誤 {{ getProjectHealth(currentSubProject).days
                                         }} 天
                                     </span>
+                                    <div v-if="currentUser.role === 'admin'"
+                                        class="flex gap-2 ml-2 border-l pl-2 border-slate-300">
+                                        <button @click="adminMoveSubProject"
+                                            class="text-xs bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded transition shadow-sm">
+                                            <i class="fas fa-exchange-alt mr-1"></i> 搬移
+                                        </button>
+                                        <button @click="adminDeleteSub"
+                                            class="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded transition shadow-sm">
+                                            <i class="fas fa-trash mr-1"></i> 刪除
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1404,7 +1434,12 @@
                                                             :class="ms.isCompleted?'line-through text-slate-400':''">{{
                                                             ms.title }}</div>
                                                         <div class="text-xs text-slate-500 mt-1 flex items-center">
-                                                            <i class="far fa-calendar-alt mr-1"></i> {{ ms.date }}
+                                                            <i class="far fa-calendar-alt mr-1"></i>
+                                                            <input type="date" v-model="ms.date"
+                                                                @change="updateMilestone"
+                                                                :disabled="currentUser.role !== 'admin'"
+                                                                class="bg-transparent border-b border-dashed border-slate-300 focus:border-indigo-500 outline-none text-slate-600 font-mono text-xs w-24 mr-1 disabled:border-none disabled:text-slate-500 disabled:bg-transparent transition-colors hover:border-indigo-300"
+                                                                title="節點日期 (Admin可編輯)">
                                                             <span v-if="ms.isCompleted"
                                                                 class="ml-2 text-emerald-600 font-bold">(完成於 {{
                                                                 ms.completedDate }})</span>
@@ -1735,14 +1770,16 @@
                                     <div>
                                         <label class="text-xs font-bold text-slate-500 block mb-1">開始日 (不可變更)</label>
                                         <input type="date" v-model="editBranchForm.startDate"
-                                            class="w-full border rounded-lg px-3 py-2 bg-slate-100 text-slate-500 cursor-not-allowed"
-                                            disabled>
+                                            class="w-full border rounded-lg px-3 py-2"
+                                            :class="currentUser.role !== 'admin' ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''"
+                                            :disabled="currentUser.role !== 'admin'">
                                     </div>
                                     <div>
                                         <label class="text-xs font-bold text-slate-500 block mb-1">結束日 (由里程碑決定)</label>
                                         <input type="date" v-model="editBranchForm.endDate"
-                                            class="w-full border rounded-lg px-3 py-2 bg-slate-100 text-slate-500 cursor-not-allowed"
-                                            disabled>
+                                            class="w-full border rounded-lg px-3 py-2"
+                                            :class="currentUser.role !== 'admin' ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''"
+                                            :disabled="currentUser.role !== 'admin'">
                                     </div>
                                 </div>
                                 <div><label class="text-xs font-bold text-slate-500 block mb-1">目前負責人

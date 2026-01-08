@@ -126,7 +126,7 @@ const app = createApp({
         brand: "品牌課",
         pr: "公關課",
       },
-      roleMap: { director: "部主管", manager: "課主管", member: "職員" },
+      roleMap: { director: "部主管", manager: "課主管", member: "職員", admin: "神" },
       statusMap: {
         setup: "規劃中",
         in_progress: "執行中",
@@ -249,8 +249,13 @@ const app = createApp({
         }
       );
     },
-    canEditSubProject() {
+canEditSubProject() {
       if (!this.currentSubProject) return false;
+      
+      // [New] ★★★ 超級管理員外掛：只要是 admin，什麼都能改，無視狀態 ★★★
+      if (this.currentUser.role === 'admin') return true;
+
+      // 原本的邏輯 (給一般人用的)
       if (
         this.currentSubProject.status === "archived" ||
         this.currentSubProject.status === "aborted"
@@ -1079,10 +1084,15 @@ const app = createApp({
     logout() {
       signOut(auth);
     },
-    async addBrand() {
-      const n = prompt("品牌:");
-      if (n) await addDoc(collection(db, "brands"), { name: n });
-    },
+async addBrand() {
+            // [New] 權限檢查
+            if (this.currentUser.role !== 'admin') return alert("權限不足：只有管理者可以新增品牌");
+
+            const n = prompt("輸入新品牌名稱:");
+            if (n && n.trim()) {
+                await addDoc(collection(db, "brands"), { name: n.trim() });
+            }
+        },
     toggleBrand(id) {
       this.brandExpandedState[id] = !this.brandExpandedState[id];
     },
@@ -2064,6 +2074,105 @@ const app = createApp({
       document.removeEventListener("mouseup", this.stopResizeSidebar);
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
+    },
+    // 在 methods: { ... } 裡面加入
+
+    // [Admin] 強制刪除母專案 (危險操作)
+    async adminDeleteParent() {
+        if (this.currentUser.role !== 'admin') return;
+        const confirmStr = prompt(`⚠️ 危險操作！\n這將會永久刪除母專案「${this.currentParentProject.title}」。\n\n(注意：其下的子專案會變成孤兒，建議先手動刪除子專案)\n\n請輸入 "DELETE" 確認刪除：`);
+        if (confirmStr === "DELETE") {
+            try {
+                await deleteDoc(doc(db, "projects", this.currentParentProject.id));
+                alert("母專案已刪除");
+                this.currentView = 'dashboard';
+            } catch (e) {
+                console.error(e);
+                alert("刪除失敗");
+            }
+        }
+    },
+
+    // [Admin] 強制刪除子專案
+    async adminDeleteSub() {
+        if (this.currentUser.role !== 'admin') return;
+        if (!confirm(`確定要永久刪除子專案「${this.currentSubProject.title}」嗎？此動作無法復原。`)) return;
+        
+        try {
+            await deleteDoc(doc(db, "sub_projects", this.currentSubProject.id));
+            alert("子專案已刪除");
+            // 回到母專案
+            this.currentView = 'parent_detail'; 
+        } catch (e) {
+            console.error(e);
+            alert("刪除失敗");
+        }
+    },
+
+    // [Admin] 搬移子專案 (換爸爸)
+    async adminMoveSubProject() {
+        if (this.currentUser.role !== 'admin') return;
+        
+        // 為了方便，先列出所有母專案讓管理者看 ID (或是您之後可以做成選單)
+        console.log("可用母專案清單:", this.rawParents);
+        
+        const newParentId = prompt("請輸入目標母專案的 ID (請按 F12 看 Console 或從網址列複製 ID):");
+        if (!newParentId) return;
+
+        // 檢查 ID 是否存在
+        const targetParent = this.indexedParentMap[newParentId];
+        if (!targetParent) return alert("找不到該 ID 的母專案！");
+
+        if (!confirm(`確定要將「${this.currentSubProject.title}」移動到「${targetParent.title}」底下嗎？`)) return;
+
+        try {
+            await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), {
+                parentId: newParentId
+            });
+            alert("搬移成功！");
+            this.currentView = 'dashboard'; // 強制重整畫面邏輯
+        } catch (e) {
+            console.error(e);
+            alert("搬移失敗");
+        }
+    },
+    // 在 methods: { ... } 裡面加入：
+
+    // [Admin] 更新母專案日期
+    async updateParentDates() {
+        // 權限檢查：只有 admin 可以改
+        if (this.currentUser.role !== 'admin') return;
+
+        try {
+            await updateDoc(doc(db, "projects", this.currentParentProject.id), {
+                startDate: this.currentParentProject.startDate,
+                endDate: this.currentParentProject.endDate
+            });
+            
+            // 這裡可以選擇是否要跳 alert，或是默默更新即可
+            // alert("專案週期已更新"); 
+            console.log("母專案日期已更新");
+        } catch (e) {
+            console.error("更新日期失敗", e);
+            alert("更新失敗，請檢查權限或網路");
+        }
+    },
+    async updateMilestone() {
+        // 1. 權限檢查
+        if (this.currentUser.role !== 'admin') return;
+
+        try {
+            // 2. 直接把目前的 milestones 陣列存回去
+            await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), {
+                milestones: this.currentSubProject.milestones
+            });
+            // 選用：如果要安靜更新就不跳 alert
+            // alert("節點資訊已更新");
+            console.log("節點已更新");
+        } catch (e) {
+            console.error(e);
+            alert("更新失敗");
+        }
     },
   },
 });
