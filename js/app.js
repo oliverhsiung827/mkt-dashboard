@@ -603,33 +603,33 @@ const app = createApp({
       });
       return days;
     },
-// 在 computed: { ... } 裡面
+    // 在 computed: { ... } 裡面
 
     memberStats() {
       // [修改] 先過濾掉 admin 角色，再進行 map 計算
       return this.users
-        .filter(u => u.role !== 'admin') 
+        .filter((u) => u.role !== "admin")
         .map((m) => {
-            let active = 0,
-              delay = 0;
-            this.allSubProjects.forEach((item) => {
-              const sp = item.branch;
-              if (sp.assignee === m.name || sp.currentHandler === m.name) {
-                if (sp.status === "in_progress") active++;
-                if (
-                  sp.status !== "aborted" &&
-                  this.getProjectHealth(sp).type === "delay"
-                )
-                  delay++;
-              }
-            });
-            return {
-              id: m.id,
-              name: m.name,
-              team: m.team,
-              activeBranches: active,
-              delayCount: delay,
-            };
+          let active = 0,
+            delay = 0;
+          this.allSubProjects.forEach((item) => {
+            const sp = item.branch;
+            if (sp.assignee === m.name || sp.currentHandler === m.name) {
+              if (sp.status === "in_progress") active++;
+              if (
+                sp.status !== "aborted" &&
+                this.getProjectHealth(sp).type === "delay"
+              )
+                delay++;
+            }
+          });
+          return {
+            id: m.id,
+            name: m.name,
+            team: m.team,
+            activeBranches: active,
+            delayCount: delay,
+          };
         });
     },
     myOwnedBranches() {
@@ -677,16 +677,16 @@ const app = createApp({
       );
       return sorted.filter((m) => !m.isCompleted).slice(0, 1);
     },
-// 在 computed: { ... } 裡面
+    // 在 computed: { ... } 裡面
 
     memberHoursStats() {
       const stats = {};
-      
+
       // [修改] 初始化時，只為「非 admin」的使用者建立統計欄位
       this.users
-        .filter(u => u.role !== 'admin')
+        .filter((u) => u.role !== "admin")
         .forEach(
-            (u) => (stats[u.name] = { name: u.name, team: u.team, hours: 0 })
+          (u) => (stats[u.name] = { name: u.name, team: u.team, hours: 0 })
         );
 
       this.allSubProjects.forEach((item) => {
@@ -699,7 +699,7 @@ const app = createApp({
           });
         }
       });
-      
+
       return Object.values(stats)
         .map((s) => ({
           ...s,
@@ -2050,12 +2050,49 @@ const app = createApp({
     },
 
     // [New] 計算特定里程碑的累計工時
+// 在 methods: { ... } 裡面
+
+    // [修改] 計算特定里程碑的累計工時 (邏輯：計算 上一個節點 ~ 這個節點 之間的所有工時)
     getMilestoneHours(branch, milestoneId) {
-      if (!branch || !branch.events) return 0;
-      const total = branch.events
-        .filter((ev) => ev.matchedMilestoneId === milestoneId)
-        .reduce((sum, ev) => sum + Number(ev.hours || 0), 0);
-      return Math.round(total * 10) / 10;
+        if (!branch || !branch.events || !branch.milestones) return 0;
+
+        // 1. 先把里程碑依照日期排序，確保順序正確
+        const sortedMs = [...branch.milestones].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        // 2. 找到「目前這個節點」在陣列中的位置索引 (index)
+        const currentIdx = sortedMs.findIndex(m => m.id === milestoneId);
+        if (currentIdx === -1) return 0; // 找不到此節點
+
+        // 3. 定義時間區間 (Range)
+        // 結束時間：當然就是「這個節點」的日期
+        const currentEndDate = new Date(sortedMs[currentIdx].date);
+        currentEndDate.setHours(23, 59, 59, 999); // 包含當天
+
+        // 開始時間：要看有沒有「上一個節點」
+        let prevEndDate;
+        if (currentIdx === 0) {
+            // 如果這是「第一個」節點，那開始時間就是無限早 (或是專案開始日)
+            // 這裡設為 1970 年，確保所有在這個節點之前的工時都會被算進來
+            prevEndDate = new Date('1970-01-01');
+        } else {
+            // 如果前面還有節點，開始時間就是「上一個節點」的日期
+            prevEndDate = new Date(sortedMs[currentIdx - 1].date);
+            prevEndDate.setHours(23, 59, 59, 999); // 設定為上個節點當天的最後一秒
+        }
+
+        // 4. 開始篩選並加總日誌
+        const total = branch.events.reduce((sum, ev) => {
+            const evDate = new Date(ev.date);
+            
+            // 核心邏輯：日誌日期 必須「大於」上個節點 且 「小於等於」這個節點
+            // (也就是夾在兩個節點中間的工時)
+            if (evDate > prevEndDate && evDate <= currentEndDate) {
+                return sum + Number(ev.hours || 0);
+            }
+            return sum;
+        }, 0);
+
+        return Math.round(total * 10) / 10;
     },
     // ... 其他 methods ...
 
