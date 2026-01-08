@@ -75,7 +75,7 @@ const routes = [
 // 3. 建立 Router 實體
 const router = VueRouter.createRouter({
   // 使用 Hash 模式 (網址會像 index.html#/project/123)，這樣不用設定 Server
-  history: VueRouter.createWebHashHistory(),
+  history: VueRouter.createWebHistory(),
   routes,
 });
 
