@@ -505,8 +505,9 @@
                                                         getDaysHeld(item.branch) }} 天</span></div>
                                             </td>
                                             <td class="px-6 py-3 text-center font-mono"
-                                                :class="getDateStyle(item.branch.endDate)">{{ item.branch.endDate||'--'
-                                                }}</td>
+                                                :class="getDateStyle(item.branch.endDate, item.branch.status)">
+                                                {{ item.branch.endDate||'--' }}
+                                            </td>
                                             <td class="px-6 py-3 text-center font-bold text-blue-600">{{
                                                 calcSubProjectHours(item.branch) }} h</td>
                                             <td class="px-6 py-3"><span
@@ -811,7 +812,7 @@
                                         <div class="text-right text-xs text-slate-500 flex flex-col items-end">
 
                                             <div class="font-mono mb-1 font-bold"
-                                                :class="getDateStyle(item.displayInfo.targetDate)">
+                                                :class="getDateStyle(item.displayInfo.targetDate, item.sub.status)">
                                                 {{ item.displayInfo.targetDate }}
                                             </div>
 
@@ -1115,13 +1116,14 @@
                                                 statusMap[branch.status] }}</span>
                                         </div>
                                         <div class="mt-4 pt-4 border-t border-slate-100">
-                                            <div class="flex justify-between text-xs text-slate-500 mb-2"><span
-                                                    :class="getDateStyle(branch.endDate)">{{ branch.endDate }} <span
-                                                        v-if="getSubProjectDelayDays(branch) > 0"
+                                            <div class="flex justify-between text-xs text-slate-500 mb-2">
+                                                <span :class="getDateStyle(branch.endDate, branch.status)">
+                                                    {{ branch.endDate }} <span v-if="getSubProjectDelayDays(branch) > 0"
                                                         class="ml-1 bg-red-100 text-red-600 px-1 rounded font-bold">延 {{
                                                         getSubProjectDelayDays(branch) }} 天</span></span><span
                                                     class="font-bold text-blue-600">{{ calcSubProjectHours(branch)
-                                                    }}h</span></div>
+                                                    }}h</span>
+                                            </div>
                                             <div class="w-full bg-slate-100 rounded-full h-1.5">
                                                 <div class="bg-emerald-500 h-1.5 rounded-full"
                                                     :style="{width: getBranchProgress(branch).percent+'%'}"></div>

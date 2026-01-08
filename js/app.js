@@ -1957,7 +1957,13 @@ const app = createApp({
         };
       return { status: "normal", label: `剩 ${diffDays} 天`, days: diffDays };
     },
-    getDateStyle(dateStr) {
+    getDateStyle(dateStr, status = "active") {
+      // 1. 如果專案狀態是「已完成、已歸檔、已中止」，一律回傳一般顏色 (灰色/深色)
+      if (["completed", "archived", "aborted"].includes(status)) {
+        return "text-slate-500 font-medium";
+      }
+
+      // 2. 原本的邏輯 (只針對執行中 active / in_progress 的專案)
       const s = this.getDeadlineStatus(dateStr);
       if (s.status === "overdue") return "text-red-600 font-bold";
       if (s.status === "warning") return "text-yellow-600 font-bold";
