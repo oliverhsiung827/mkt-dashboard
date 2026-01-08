@@ -2,19 +2,15 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>重新導向中...</title>
+    <title>Redirecting...</title>
     <script type="text/javascript">
-      // 這是 GitHub Pages SPA 的神奇重新導向腳本
-      // 它會將當前的路徑 (path) 存入 sessionStorage，然後導回 index.html
-      var pathSegmentsToKeep = 0; // 如果您的網址是 username.github.io/repo-name/，這裡可能要設為 1
+      // 因為您的網址是 username.github.io (根目錄)，所以設為 0
+      var pathSegmentsToKeep = 0;
 
       var l = window.location;
-      
-      // 重組當前網址並存入 sessionStorage
       sessionStorage.redirect = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
                                 l.pathname + l.search;
       
-      // 導回首頁 (index.html)
       l.replace(
         l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
         l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
