@@ -241,6 +241,24 @@ const app = createApp({
             { title: "確認並排程" },
           ],
         },
+        {
+          name: "提案簽呈",
+          milestones: [
+            { title: "撰寫簽呈" },
+            { title: "送出簽呈" },
+            { title: "簽呈退回" },
+            { title: "再次送出簽呈退" },
+            { title: "簽呈簽核完畢" },
+            { title: "合約簽呈提出" },
+            { title: "合約簽呈確認" },
+          ],
+        },
+         {
+          name: "名單",
+          milestones: [
+            { title: "提供名單" },
+          ],
+        },
       ],
       selectedTemplateIndex: "", // 用來綁定下拉選單
     };
@@ -314,23 +332,30 @@ const app = createApp({
         }
       );
     },
+// [權限修正] 只有「負責人」跟「當下執行者」可以修改內容
     canEditSubProject() {
+      // 1. 基本防呆
       if (!this.currentSubProject) return false;
 
-      // [New] ★★★ 超級管理員外掛：只要是 admin，什麼都能改，無視狀態 ★★★
+      // 2. Admin 擁有最高權限 (保留此行以便您進行系統維護/救援)
       if (this.currentUser.role === "admin") return true;
 
-      // 原本的邏輯 (給一般人用的)
+      // 3. 狀態檢查：如果專案已經結束 (歸檔/中止/完成)，原則上鎖定不給改
+      // (除非您希望結案後還能改，就把這段拿掉)
       if (
         this.currentSubProject.status === "archived" ||
-        this.currentSubProject.status === "aborted"
-      )
+        this.currentSubProject.status === "aborted" ||
+        this.currentSubProject.status === "completed"
+      ) {
         return false;
-      if (this.currentUser.role !== "member") return true;
-      return (
-        this.currentSubProject.assignee === this.currentUser.name ||
-        this.currentSubProject.currentHandler === this.currentUser.name
-      );
+      }
+
+      // 4. [核心修改] 比對使用者名稱
+      const isAssignee = this.currentSubProject.assignee === this.currentUser.name;
+      const isHandler = this.currentSubProject.currentHandler === this.currentUser.name;
+
+      // 只有這兩個人 (或 Admin) 回傳 true
+      return isAssignee || isHandler;
     },
     sortedBrands() {
       return [...this.brands].sort((a, b) =>
