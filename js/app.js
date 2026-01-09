@@ -17,7 +17,7 @@ import {
   getDocs,
   limit,
   orderBy,
-  getDoc
+  getDoc,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { createApp } from "https://unpkg.com/vue@3/dist/vue.esm-browser.js";
 
@@ -1304,13 +1304,31 @@ const app = createApp({
       if (!this.projectForm.title) return alert("請填寫資訊");
       this.isSubmitting = true;
       try {
-        await addDoc(
-          collection(db, "projects"),
-          DataFactory.createProject(this.projectForm, this.currentUser)
+        // 1. 產生資料物件
+        const newProjectData = DataFactory.createProject(
+          this.projectForm,
+          this.currentUser
         );
+
+        // 2. 寫入資料庫，並取得新 ID
+        const docRef = await addDoc(collection(db, "projects"), newProjectData);
+
+        // 3. [重要] 手動更新前端快取 (因為移除了 onSnapshot)
+        const newProject = { id: docRef.id, ...newProjectData };
+        this.activeParents.push(newProject);
+        // 更新索引 Map，這樣等一下路由才找得到
+        this.indexedParentMap[docRef.id] = newProject;
+
         this.showProjectModal = false;
+
+        // 4. 跳轉到新專案頁面
+        this.$router.push({ name: "parent", params: { pid: docRef.id } });
+
+        // 顯示成功訊息 (可選)
+        // this.showToast('開案成功', '已建立母專案並跳轉', 'success');
       } catch (e) {
         console.error(e);
+        alert("開案失敗：" + e.message);
       } finally {
         this.isSubmitting = false;
       }
@@ -1328,7 +1346,8 @@ const app = createApp({
       if (!this.subProjectForm.title) return alert("請填寫名稱");
       this.isSubmitting = true;
       try {
-        const newSub = DataFactory.createSubProject(
+        // 1. 產生資料物件
+        const newSubData = DataFactory.createSubProject(
           this.subProjectForm,
           this.currentUser
         );
@@ -1336,24 +1355,45 @@ const app = createApp({
         // [防呆] 子專案起點不早於母專案
         const parentObj = this.indexedParentMap[this.subProjectForm.parentId];
         if (parentObj && parentObj.startDate) {
-          if (newSub.startDate < parentObj.startDate) {
-            newSub.startDate = parentObj.startDate;
+          if (newSubData.startDate < parentObj.startDate) {
+            newSubData.startDate = parentObj.startDate;
           }
         }
 
-        const docRef = await addDoc(collection(db, "sub_projects"), newSub);
-        if (newSub.assignee !== this.currentUser.name)
+        // 2. 寫入資料庫，取得 ID
+        const docRef = await addDoc(collection(db, "sub_projects"), newSubData);
+
+        // 3. 發送通知 (如果有指派別人)
+        if (newSubData.assignee !== this.currentUser.name) {
           this.sendNotification(
-            newSub.assignee,
+            newSubData.assignee,
             "task",
-            `您被指派負責新專案: ${newSub.title}`,
+            `您被指派負責新專案: ${newSubData.title}`,
             this.subProjectForm.parentId,
             docRef.id
           );
+        }
+
+        // 4. [重要] 手動更新前端快取
+        const newSub = { id: docRef.id, ...newSubData };
+        this.activeSubs.push(newSub);
+
+        // 手動更新索引 (把新子案塞進對應的母案陣列)
+        if (!this.indexedSubsByParent[this.subProjectForm.parentId]) {
+          this.indexedSubsByParent[this.subProjectForm.parentId] = [];
+        }
+        this.indexedSubsByParent[this.subProjectForm.parentId].push(newSub);
+
         this.showSubProjectModal = false;
+
+        // 5. 跳轉到新子專案頁面
+        this.$router.push({
+          name: "sub",
+          params: { pid: this.subProjectForm.parentId, sid: docRef.id },
+        });
       } catch (e) {
         console.error(e);
-        alert("Error");
+        alert("開案失敗：" + e.message);
       } finally {
         this.isSubmitting = false;
       }
@@ -1552,7 +1592,7 @@ const app = createApp({
       };
       this.showEventModal = true;
     },
-async saveEvent() {
+    async saveEvent() {
       // 1. 權限檢查
       if (this.currentSubProject.currentHandler !== this.currentUser.name)
         return;
@@ -1620,18 +1660,21 @@ async saveEvent() {
       // 6. 將日誌推入本地陣列
       if (!this.currentSubProject.events) this.currentSubProject.events = [];
       this.currentSubProject.events.push(newEvent);
-      
+
       const oldHandler = this.currentSubProject.currentHandler;
       this.currentSubProject.currentHandler = nextHandler;
 
       // ==========================================
       // [優化關鍵] 計算總工時並寫入 (新增部分)
       // ==========================================
-      const newTotalHours = this.currentSubProject.events.reduce((sum, ev) => sum + Number(ev.hours || 0), 0);
+      const newTotalHours = this.currentSubProject.events.reduce(
+        (sum, ev) => sum + Number(ev.hours || 0),
+        0
+      );
       // 強制進位到小數點第一位
       const roundedTotal = Math.round(newTotalHours * 10) / 10;
       // 更新本地資料 (讓畫面立刻變)
-      this.currentSubProject.totalHours = roundedTotal; 
+      this.currentSubProject.totalHours = roundedTotal;
       // ==========================================
 
       // 7. 里程碑匹配與結案邏輯判斷
@@ -1649,7 +1692,7 @@ async saveEvent() {
           ms.diffDays = Math.floor(
             (new Date(this.eventForm.date) - new Date(ms.date)) / 86400000
           );
-          
+
           // 如果是最後一個節點 -> 觸發結案檢查
           if (ms.id === lastMilestone.id) {
             const today = new Date(this.eventForm.date);
@@ -1663,7 +1706,7 @@ async saveEvent() {
               this.currentSubProject.events.pop();
               this.currentSubProject.currentHandler = oldHandler;
               ms.isCompleted = false;
-              
+
               // 暫存資料傳給 Modal
               this.tempCompletionData = {
                 finalDelay,
@@ -1671,13 +1714,12 @@ async saveEvent() {
                 milestoneId: ms.id,
                 nextHandler,
               };
-              
+
               this.showEventModal = false;
               this.modalMode = "sub_delay_complete";
               this.delayForm = { reason: "人力不足", remark: "" };
               this.showDelayReasonModal = true;
               return; // ★ 這裡直接 Return，等待 Modal 確認後再存檔
-
             } else {
               // B. 準時完成：直接結案
               isProjectCompleted = true;
@@ -1698,9 +1740,9 @@ async saveEvent() {
           events: this.currentSubProject.events,
           currentHandler: nextHandler,
           milestones: this.currentSubProject.milestones,
-          
+
           // [優化關鍵] 將算好的總工時存入資料庫
-          totalHours: roundedTotal 
+          totalHours: roundedTotal,
         };
 
         if (isHandoff) {
@@ -1731,7 +1773,6 @@ async saveEvent() {
           this.historySubs.push(completedProject);
           this.buildIndexes();
         }
-
       } catch (e) {
         console.error("Sync Failed", e);
         alert("存檔失敗，請檢查網路");
@@ -1948,19 +1989,19 @@ async saveEvent() {
       p.expanded = !p.expanded;
     },
     // [修正] 底層計算函式：強制進位到小數點第一位
-calcSubProjectHours(sp) {
-  // [優化] 如果資料庫裡已經有算好的欄位，直接回傳 (CPU 複雜度從 O(N) 降為 O(1))
-  if (sp.totalHours !== undefined) {
-      return sp.totalHours;
-  }
+    calcSubProjectHours(sp) {
+      // [優化] 如果資料庫裡已經有算好的欄位，直接回傳 (CPU 複雜度從 O(N) 降為 O(1))
+      if (sp.totalHours !== undefined) {
+        return sp.totalHours;
+      }
 
-  // [相容性] 萬一遇到漏網之魚(舊資料)，還是用舊方法算一下，避免顯示 0
-  const total = (sp.events || []).reduce(
-    (sum, ev) => sum + Number(ev.hours || 0),
-    0
-  );
-  return Math.round(total * 10) / 10;
-},
+      // [相容性] 萬一遇到漏網之魚(舊資料)，還是用舊方法算一下，避免顯示 0
+      const total = (sp.events || []).reduce(
+        (sum, ev) => sum + Number(ev.hours || 0),
+        0
+      );
+      return Math.round(total * 10) / 10;
+    },
     getMilestoneName(mid) {
       return (
         this.currentSubProject?.milestones?.find((m) => m.id === mid)?.title ||
@@ -2509,26 +2550,29 @@ calcSubProjectHours(sp) {
       }
     },
     // [Admin] 修改工作日誌內容 (工時/內容)
-async updateEventLog() {
+    async updateEventLog() {
       if (this.currentUser.role !== "admin") return;
 
       try {
         // [優化] ★★★ 重新計算總工時 ★★★
-        const newTotalHours = this.currentSubProject.events.reduce((sum, ev) => sum + Number(ev.hours || 0), 0);
+        const newTotalHours = this.currentSubProject.events.reduce(
+          (sum, ev) => sum + Number(ev.hours || 0),
+          0
+        );
         const roundedTotal = Math.round(newTotalHours * 10) / 10;
         this.currentSubProject.totalHours = roundedTotal; // 本地更新
 
         await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), {
           events: this.currentSubProject.events,
-          
+
           // [優化] ★★★ 寫入資料庫 ★★★
-          totalHours: roundedTotal
+          totalHours: roundedTotal,
         });
-        
-        this.showToast('更新成功', '工時與日誌已修正', 'success');
+
+        this.showToast("更新成功", "工時與日誌已修正", "success");
       } catch (e) {
         console.error(e);
-        this.showToast('修正失敗', e.message, 'error');
+        this.showToast("修正失敗", e.message, "error");
       }
     },
 
@@ -2543,7 +2587,7 @@ async updateEventLog() {
     // 在 methods: { ... } 裡面，請直接替換掉原本的 handleRouteUpdate
 
     // [最終修正版] 路由處理核心
-// [最終修正版] 路由處理核心 (含單筆補抓救援機制)
+    // [最終修正版] 路由處理核心 (含單筆補抓救援機制)
     async handleRouteUpdate(route) {
       // 1. 如果使用者權限還沒準備好，先不做事 (等待 watch: dataReady 觸發)
       if (!this.dataReady) return;
@@ -2580,19 +2624,27 @@ async updateEventLog() {
           // 救援 B: (終極) 如果還是找不到，直接單筆抓取
           // 這能解決「資料還沒下載完」或是「被 limit 擋住」的問題
           if (!parent) {
-             console.log("啟動單筆救援：母專案", pid);
-             try {
-                const snap = await getDoc(doc(db, "projects", pid));
-                if (snap.exists()) {
-                   parent = { id: snap.id, brandId: "", title: "Untitled", status: "active", ...snap.data() };
-                   // 補進 Map 避免下次還要抓
-                   this.indexedParentMap[pid] = parent;
-                   // 暫時塞進 activeParents 讓畫面能渲染
-                   this.activeParents.push(parent); 
-                   // 重建索引確保關聯正確
-                   this.buildIndexes();
-                }
-             } catch(e) { console.error("母專案單筆補抓失敗", e); }
+            console.log("啟動單筆救援：母專案", pid);
+            try {
+              const snap = await getDoc(doc(db, "projects", pid));
+              if (snap.exists()) {
+                parent = {
+                  id: snap.id,
+                  brandId: "",
+                  title: "Untitled",
+                  status: "active",
+                  ...snap.data(),
+                };
+                // 補進 Map 避免下次還要抓
+                this.indexedParentMap[pid] = parent;
+                // 暫時塞進 activeParents 讓畫面能渲染
+                this.activeParents.push(parent);
+                // 重建索引確保關聯正確
+                this.buildIndexes();
+              }
+            } catch (e) {
+              console.error("母專案單筆補抓失敗", e);
+            }
           }
 
           if (parent) {
@@ -2609,7 +2661,7 @@ async updateEventLog() {
         case "sub": {
           const subPid = route.params.pid;
           const sid = route.params.sid;
-          
+
           let p = this.indexedParentMap[subPid];
           // 嘗試從活躍或歷史清單找子專案
           let s = this.activeSubs.find((sub) => sub.id === sid);
@@ -2626,43 +2678,52 @@ async updateEventLog() {
 
           // 救援 B: (終極) 單筆抓取
           if (!p || !s) {
-              console.log("快取未命中，啟動單筆救援 (子專案)...");
-              try {
-                  // 1. 補抓母專案 (如果缺的話)
-                  if (!p) {
-                      const pSnap = await getDoc(doc(db, "projects", subPid));
-                      if (pSnap.exists()) {
-                          p = { id: pSnap.id, brandId: "", title: "Untitled", status: "active", ...pSnap.data() };
-                          this.indexedParentMap[subPid] = p;
-                          this.activeParents.push(p);
-                      }
-                  }
-                  // 2. 補抓子專案 (如果缺的話)
-                  if (!s) {
-                      const sSnap = await getDoc(doc(db, "sub_projects", sid));
-                      if (sSnap.exists()) {
-                          const data = sSnap.data();
-                          s = {
-                              id: sSnap.id,
-                              parentId: "",
-                              title: "Untitled",
-                              status: "setup",
-                              ...data,
-                              milestones: data.milestones || [],
-                              events: data.events || [],
-                              links: data.links || [],
-                              comments: data.comments || []
-                          };
-                          // 補進 activeSubs 讓畫面能顯示
-                          this.activeSubs.push(s);
-                          // 手動更新索引
-                          if(!this.indexedSubsByParent[subPid]) this.indexedSubsByParent[subPid] = [];
-                          this.indexedSubsByParent[subPid].push(s);
-                      }
-                  }
-                  // 補完資料後重建索引
-                  this.buildIndexes();
-              } catch(e) { console.error("單筆補抓失敗", e); }
+            console.log("快取未命中，啟動單筆救援 (子專案)...");
+            try {
+              // 1. 補抓母專案 (如果缺的話)
+              if (!p) {
+                const pSnap = await getDoc(doc(db, "projects", subPid));
+                if (pSnap.exists()) {
+                  p = {
+                    id: pSnap.id,
+                    brandId: "",
+                    title: "Untitled",
+                    status: "active",
+                    ...pSnap.data(),
+                  };
+                  this.indexedParentMap[subPid] = p;
+                  this.activeParents.push(p);
+                }
+              }
+              // 2. 補抓子專案 (如果缺的話)
+              if (!s) {
+                const sSnap = await getDoc(doc(db, "sub_projects", sid));
+                if (sSnap.exists()) {
+                  const data = sSnap.data();
+                  s = {
+                    id: sSnap.id,
+                    parentId: "",
+                    title: "Untitled",
+                    status: "setup",
+                    ...data,
+                    milestones: data.milestones || [],
+                    events: data.events || [],
+                    links: data.links || [],
+                    comments: data.comments || [],
+                  };
+                  // 補進 activeSubs 讓畫面能顯示
+                  this.activeSubs.push(s);
+                  // 手動更新索引
+                  if (!this.indexedSubsByParent[subPid])
+                    this.indexedSubsByParent[subPid] = [];
+                  this.indexedSubsByParent[subPid].push(s);
+                }
+              }
+              // 補完資料後重建索引
+              this.buildIndexes();
+            } catch (e) {
+              console.error("單筆補抓失敗", e);
+            }
           }
 
           if (p && s) {
