@@ -40,8 +40,7 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/sortablejs@1.14.0/Sortable.min.js"></script>
-
+    <script src="https://unpkg.com/sortablejs@1.15.0/Sortable.min.js"></script>
     <script src="https://unpkg.com/vuedraggable@4.1.0/dist/vuedraggable.umd.min.js"></script>
 
 
@@ -973,14 +972,13 @@
 
                             <div v-if="taskViewMode === 'kanban'"
                                 class="flex-1 overflow-x-auto overflow-y-hidden p-6 bg-slate-50">
-
                                 <div class="flex h-full gap-4 min-w-[1200px]">
 
                                     <div
                                         class="flex-1 flex flex-col bg-slate-100 rounded-xl border border-slate-200 min-w-[320px]">
                                         <div
                                             class="p-3 border-b border-slate-200 font-bold text-slate-600 flex justify-between items-center bg-slate-100 rounded-t-xl">
-                                            <span>🟡 待規劃 (Inbox)</span>
+                                            <span>🟡 待規劃 </span>
                                             <span class="bg-white px-2 rounded-full text-xs text-slate-400">{{
                                                 kanbanColumns.inbox.length }}</span>
                                         </div>
@@ -990,13 +988,17 @@
                                                 <i class="fas fa-inbox text-5xl text-slate-300 mb-3"></i>
                                                 <span class="text-xs text-slate-400 font-bold">目前沒有新案子</span>
                                             </div>
+
                                             <vuedraggable class="flex flex-col gap-3 min-h-[100px] relative z-10"
-                                                :list="kanbanColumns.inbox" group="inbox_static" item-key="id"
-                                                @change="(e) => onKanbanChange(e, 'inbox')">
+                                                :list="kanbanColumns.inbox" group="inbox_static" v-bind="dragOptions"
+                                                :sort="false" item-key="id" @change="(e) => onKanbanChange(e, 'inbox')">
                                                 <template #item="{element}">
                                                     <div @click="selectSubProject(element, element.parentObj)"
-                                                        class="bg-white p-3 rounded-lg shadow-sm border border-slate-200 cursor-move hover:shadow-md transition group relative"
-                                                        :class="getProjectHealth(element).type !== 'normal' ? 'border-l-4 border-l-red-500 bg-red-50/10' : 'border-l-4 border-l-slate-400'">
+                                                        class="bg-white p-3 rounded-lg shadow-sm border border-slate-200 cursor-move hover:shadow-md transition group relative select-none"
+                                                        :class="[
+                                    getProjectHealth(element).type !== 'normal' ? 'border-l-4 border-l-red-500 bg-red-50/10' : 'border-l-4 border-l-slate-400',
+                                    getProjectHealth(element).type === 'delay' ? 'nervous-hover' : ''
+                                 ]">
                                                         <div class="flex justify-between items-start mb-2">
                                                             <div
                                                                 class="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded font-bold">
@@ -1038,7 +1040,7 @@
                                         class="flex-1 flex flex-col bg-indigo-50 rounded-xl border border-indigo-100 min-w-[320px]">
                                         <div
                                             class="p-3 border-b border-indigo-100 font-bold text-indigo-800 flex justify-between items-center bg-indigo-50 rounded-t-xl">
-                                            <span>🔵 待辦清單 (Backlog)</span>
+                                            <span>🔵 待辦清單 </span>
                                             <span class="bg-white px-2 rounded-full text-xs text-indigo-400">{{
                                                 kanbanColumns.backlog.length }}</span>
                                         </div>
@@ -1048,13 +1050,17 @@
                                                 <i class="fas fa-clipboard-check text-5xl text-indigo-200 mb-3"></i>
                                                 <span class="text-xs text-indigo-300 font-bold">待辦事項已清空！</span>
                                             </div>
+
                                             <vuedraggable class="flex flex-col gap-3 min-h-[100px] relative z-10"
-                                                :list="kanbanColumns.backlog" group="kanban" item-key="id"
-                                                @change="(e) => onKanbanChange(e, 'backlog')">
+                                                :list="kanbanColumns.backlog" group="kanban" v-bind="dragOptions"
+                                                item-key="id" @change="(e) => onKanbanChange(e, 'backlog')">
                                                 <template #item="{element}">
                                                     <div @click="selectSubProject(element, element.parentObj)"
-                                                        class="bg-white p-3 rounded-lg shadow-sm border cursor-move hover:shadow-md transition group relative"
-                                                        :class="getProjectHealth(element).type !== 'normal' ? 'border-l-4 border-l-red-500 border-red-200' : 'border-l-4 border-l-indigo-400 border-slate-200'">
+                                                        class="bg-white p-3 rounded-lg shadow-sm border cursor-move hover:shadow-md transition group relative select-none"
+                                                        :class="[
+                                    getProjectHealth(element).type !== 'normal' ? 'border-l-4 border-l-red-500 border-red-200' : 'border-l-4 border-l-indigo-400 border-slate-200',
+                                    getProjectHealth(element).type === 'delay' ? 'nervous-hover' : ''
+                                 ]">
                                                         <div class="flex justify-between items-start mb-2">
                                                             <div
                                                                 class="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded font-bold">
@@ -1117,22 +1123,27 @@
                                         class="flex-1 flex flex-col bg-orange-50 rounded-xl border border-orange-100 min-w-[320px] shadow-inner">
                                         <div
                                             class="p-3 border-b border-orange-100 font-bold text-orange-800 flex justify-between items-center bg-orange-50 rounded-t-xl">
-                                            <span>🔥 今日專注 (Today)</span>
+                                            <span>🔥 今日專注 </span>
                                             <span class="bg-white px-2 rounded-full text-xs text-orange-400">{{
                                                 kanbanColumns.today.length }}</span>
                                         </div>
                                         <div class="flex-1 overflow-y-auto p-2 custom-scrollbar relative">
                                             <div v-if="kanbanColumns.today.length === 0"
-                                                class="absolute inset-0 flex flex-col items-center justify-center opacity-40 pointer-events-none">
-                                                <i class="fas fa-sun text-5xl text-orange-200 mb-3"></i>
-                                                <span class="text-xs text-orange-300 font-bold">今日任務已完成！</span>
+                                                class="absolute inset-0 flex flex-col items-center justify-center opacity-60 pointer-events-none">
+                                                <i class="fas fa-sun text-5xl text-orange-300 mb-4"></i>
+                                                <span
+                                                    class="text-sm text-orange-600 font-bold text-center px-4 leading-relaxed tracking-wide">
+                                                    {{ currentCheer }}
+                                                </span>
                                             </div>
+
                                             <vuedraggable class="flex flex-col gap-3 min-h-[100px] relative z-10"
-                                                :list="kanbanColumns.today" group="kanban" item-key="id"
-                                                @change="(e) => onKanbanChange(e, 'today')">
+                                                :list="kanbanColumns.today" group="kanban" v-bind="dragOptions"
+                                                item-key="id" @change="(e) => onKanbanChange(e, 'today')">
                                                 <template #item="{element}">
                                                     <div @click="selectSubProject(element, element.parentObj)"
-                                                        class="bg-white p-3 rounded-lg shadow border-l-4 border-l-orange-500 cursor-move hover:scale-[1.02] transition border-slate-100 relative overflow-hidden">
+                                                        class="bg-white p-3 rounded-lg shadow border-l-4 border-l-orange-500 cursor-move hover:scale-[1.02] transition border-slate-100 relative overflow-hidden select-none"
+                                                        :class="[getProjectHealth(element).type === 'delay' ? 'nervous-hover' : '']">
                                                         <div class="flex justify-between items-start mb-2">
                                                             <div
                                                                 class="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded font-bold">
@@ -1185,7 +1196,7 @@
                                         class="flex-1 flex flex-col bg-slate-200/50 rounded-xl border border-slate-300 min-w-[320px]">
                                         <div
                                             class="p-3 border-b border-slate-300 font-bold text-slate-600 flex justify-between items-center bg-slate-200 rounded-t-xl">
-                                            <span>⏳ 等待審核 (Review)</span>
+                                            <span>⏳ 等待審核 </span>
                                             <span class="bg-white px-2 rounded-full text-xs text-slate-400">{{
                                                 kanbanColumns.review.length }}</span>
                                         </div>
@@ -1198,12 +1209,14 @@
                                                 <i class="fas fa-user-check text-5xl text-slate-300 mb-3"></i>
                                                 <span class="text-xs text-slate-400 font-bold">無待審核項目</span>
                                             </div>
+
                                             <vuedraggable class="flex flex-col gap-3 min-h-[100px] relative z-10"
-                                                :list="kanbanColumns.review" group="review_static" item-key="id"
-                                                @change="(e) => onKanbanChange(e, 'review')">
+                                                :list="kanbanColumns.review" group="review_static" :disabled="true"
+                                                item-key="id" @change="(e) => onKanbanChange(e, 'review')">
                                                 <template #item="{element}">
                                                     <div @click="selectSubProject(element, element.parentObj)"
-                                                        class="bg-white/90 backdrop-blur-sm p-3 rounded-lg shadow-sm border border-slate-300 cursor-move hover:shadow-md transition group opacity-90 hover:opacity-100">
+                                                        class="bg-white/90 backdrop-blur-sm p-3 rounded-lg shadow-sm border border-slate-300 cursor-move hover:shadow-md transition group opacity-90 hover:opacity-100 select-none"
+                                                        :class="[getProjectHealth(element).type === 'delay' ? 'nervous-hover' : '']">
                                                         <div class="flex justify-between items-start mb-2">
                                                             <div
                                                                 class="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded font-bold">

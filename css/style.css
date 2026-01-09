@@ -104,8 +104,32 @@ button.bg-indigo-600.text-white.py-3:hover {
     background-color: #fabe00 !important;
     border-color: #fff !important;
 }
-.ghost-card {
-  opacity: 0.5;
-  background: #f1f5f9;
-  border: 2px dashed #cbd5e1;
-}
+/* 1. 殘影樣式 (原本位置的虛線框) */
+        .sortable-ghost {
+            opacity: 0.2;
+            background: #cbd5e1; /* slate-300 */
+            border: 2px dashed #94a3b8; /* slate-400 */
+        }
+
+        /* 2. 防文字反白 (全域保護) */
+        body.dragging {
+            user-select: none !important;
+            -webkit-user-select: none !important;
+        }
+
+        /* 3. 游標手勢 */
+        .cursor-move {
+            cursor: move; /* 原生拖曳游標 */
+        }
+
+        /* 4. 彩蛋動畫：緊張發抖 (這可以留著，因為它是在 hover 時觸發) */
+        @keyframes shiver {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(-1px, 1px) rotate(-1deg); }
+            50% { transform: translate(1px, -1px) rotate(1deg); }
+            75% { transform: translate(-1px, -1px) rotate(-1deg); }
+            100% { transform: translate(1px, 1px) rotate(1deg); }
+        }
+        .nervous-hover:hover {
+            animation: shiver 0.2s infinite; 
+        }
