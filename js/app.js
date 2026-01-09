@@ -283,12 +283,24 @@ const app = createApp({
         delay: 0,
         touchStartThreshold: 3,
       },
+      // [New] 彩蛋變數
+        pokeCount: 0, // 計算戳了幾下
+        headerTitle: "我的待辦任務", // 標題文字 (改成變數控制)
+        isHeaderSpinning: false, // 控制旋轉動畫
     };
   },
+// [修正] 整合了路由、登入驗證、以及 Konami Code 監聽
   async mounted() {
+    // ------------------------------------------------------------
+    // 1. 原有的 Router 網址監聽 (保持不動)
+    // ------------------------------------------------------------
     router.afterEach((to) => {
       this.handleRouteUpdate(to);
     });
+
+    // ------------------------------------------------------------
+    // 2. 原有的 Auth 登入狀態監聽 (保持不動)
+    // ------------------------------------------------------------
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         this.userParams = user;
@@ -314,6 +326,37 @@ const app = createApp({
         this.currentUserId = null;
         this.dataReady = false;
       }
+    });
+
+    // ------------------------------------------------------------
+    // 3. [New] 彩蛋監聽器：Konami Code (上上下下左右左右 B A)
+    // ------------------------------------------------------------
+    const konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+    let cursor = 0;
+
+    window.addEventListener('keydown', (e) => {
+        // 取得按鍵 (轉小寫以防大小寫問題)
+        const key = e.key.toLowerCase();
+        // 取得目標按鍵 (也轉小寫)
+        const targetKey = konamiCode[cursor].toLowerCase();
+
+        // 比對按鍵
+        if (key === targetKey) {
+            cursor++; // 對了就下一關
+            
+            // 如果全部輸入正確
+            if (cursor === konamiCode.length) {
+                console.log("Konami Code Activated! 🚀");
+                
+                // 呼叫放煙火的方法 (請確認 methods 裡有寫 triggerSuperParty)
+                if (this.triggerSuperParty) {
+                    this.triggerSuperParty();
+                } 
+                cursor = 0; // 重置，準備下一次
+            }
+        } else {
+            cursor = 0; // 按錯任何一個鍵就重來
+        }
     });
   },
   computed: {
@@ -2278,6 +2321,56 @@ const app = createApp({
         }
       }
     },
+    pokeHeader() {
+            this.pokeCount++;
+            this.isHeaderSpinning = true;
+
+            // 讓 icon 轉一圈，0.5秒後停下來
+            setTimeout(() => {
+                this.isHeaderSpinning = false;
+            }, 500);
+
+            // 如果連續戳了 5 下
+            if (this.pokeCount >= 5) {
+                const originalTitle = "我的待辦任務";
+                // 變身！
+                this.headerTitle = "別戳了！快去工作！💢";
+                
+                // 3秒後氣消
+                setTimeout(() => {
+                    this.headerTitle = originalTitle;
+                    this.pokeCount = 0; // 重置計數
+                }, 3000);
+            }
+        },
+
+        // 👇👇👇 [請補上這一段] 超級煙火函式 (Konami Code 用) 👇👇👇
+        triggerSuperParty() {
+            if (!window.confetti) return;
+            console.log("Konami Code Activated! 🚀");
+
+            const duration = 3000;
+            const end = Date.now() + duration;
+
+            (function frame() {
+                confetti({
+                    particleCount: 5,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 }
+                });
+                confetti({
+                    particleCount: 5,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 }
+                });
+
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
+            }());
+        },
 
     selectSubProject(sp, parent) {
       // [修改] 改用路由跳轉
@@ -3433,6 +3526,7 @@ const app = createApp({
           // 如果取消，要重新整理畫面把卡片彈回去 (略)
           this.fetchDashboardData();
         }
+        
       }
     }
   },
@@ -3444,6 +3538,7 @@ const app = createApp({
     if (this.localFocusIds.includes(item.id)) return "today";
     return "backlog";
   },
+  
 });
 
 app.use(router); // 掛載路由
