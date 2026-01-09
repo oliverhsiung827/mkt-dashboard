@@ -232,6 +232,15 @@ const app = createApp({
             { title: "簽呈完成" },
           ],
         },
+        {
+          name: "社群貼文製作",
+          milestones: [
+            { title: "提供設計Brief+文案" },
+            { title: "設計初提" },
+            { title: "設計定案" },
+            { title: "確認並排程" },
+          ],
+        },
       ],
       selectedTemplateIndex: "", // 用來綁定下拉選單
     };
@@ -2912,46 +2921,47 @@ const app = createApp({
       if (pageName === "workspace") this.$router.push("/workspace");
     },
     // [New] 應用模板 (自動計算日期)
-// [New] 應用模板
+
+    // [New] 應用模板 (支援不填開始日)
     applyTemplate() {
       if (this.selectedTemplateIndex === "") return;
-      
-      const template = this.projectTemplates[this.selectedTemplateIndex];
-      // 注意：如果您希望連「子專案開始日」都不用填就能載入模板，可以把下面這三行註解掉
-      //const baseDateStr = this.setupForm.startDate;
-     // if (!baseDateStr) {
-        // alert("請先設定「子專案開始日」，系統才能幫您推算時程！");
-       //  return;
-     //}
-      const baseDate = new Date(baseDateStr);
 
-      template.milestones.forEach(tm => {
+      const template = this.projectTemplates[this.selectedTemplateIndex];
+      const baseDateStr = this.setupForm.startDate;
+
+      // 判斷基礎日期是否有效
+      const hasBaseDate = baseDateStr && baseDateStr.trim() !== "";
+      const baseDate = hasBaseDate ? new Date(baseDateStr) : null;
+
+      template.milestones.forEach((tm) => {
         let dateStr = ""; // 預設為空白
 
-        // ★ 關鍵修改：只有當模板有設定「天數 (daysOffset)」時，才去計算日期
-        if (tm.daysOffset !== undefined) {
-            const targetDate = new Date(baseDate);
-            targetDate.setDate(baseDate.getDate() + tm.daysOffset);
-            dateStr = targetDate.toLocaleDateString("en-CA", { timeZone: "Asia/Taipei" });
+        // 只有在「有基礎日期」且「模板有設定天數」時，才去計算
+        if (hasBaseDate && tm.daysOffset !== undefined) {
+          const targetDate = new Date(baseDate);
+          targetDate.setDate(baseDate.getDate() + tm.daysOffset);
+          dateStr = targetDate.toLocaleDateString("en-CA", {
+            timeZone: "Asia/Taipei",
+          });
         }
 
         this.setupForm.milestones.push({
-          id: "ms" + Date.now() + Math.floor(Math.random()*1000),
+          id: "ms" + Date.now() + Math.floor(Math.random() * 1000),
           title: tm.title,
-          date: dateStr, // 這裡會是日期字串或是 "" (空白)
-          isCompleted: false
+          date: dateStr, // 沒得算就留白
+          isCompleted: false,
         });
       });
 
-      // 只有當所有節點都有日期時，才自動更新結束日，不然就留給使用者自己填
-      const hasAllDates = this.setupForm.milestones.every(m => m.date !== "");
-      if (hasAllDates && this.setupForm.milestones.length > 0) {
-          this.setupForm.milestones.sort((a,b) => new Date(a.date) - new Date(b.date));
-          this.setupForm.endDate = this.setupForm.milestones[this.setupForm.milestones.length - 1].date;
+      // 如果有日期，試著自動抓最後一天當結束日
+      const validDates = this.setupForm.milestones.filter((m) => m.date !== "");
+      if (validDates.length > 0) {
+        validDates.sort((a, b) => new Date(a.date) - new Date(b.date));
+        this.setupForm.endDate = validDates[validDates.length - 1].date;
       }
 
-      alert(`清單已載入！\n已匯入「${template.name}」`);
-      this.selectedTemplateIndex = ""; 
+      alert(`模板「${template.name}」載入完成！`);
+      this.selectedTemplateIndex = "";
     },
   },
 });
