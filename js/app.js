@@ -823,104 +823,90 @@ const app = createApp({
         .sort((a, b) => b.hours - a.hours);
     },
 
-    // [修正] 看板排序邏輯：完全比照列表模式 (健康度 > 最近里程碑 > 結束日)
+// [修正] 看板資料分類 (含搜尋過濾 + 智慧排序)
     kanbanColumns() {
       const myTasks = [];
-      const focusIds = this.localFocusIds || [];
+      const focusIds = this.localFocusIds || []; 
+      
+      // 1. 取得搜尋關鍵字 (轉小寫，去頭尾空白)
+      const keyword = (this.subProjectSearch || "").toLowerCase().trim();
 
-      // 1. 抓取資料
-      this.rawParents.forEach((p) => {
+      // 2. 抓取資料並篩選
+      this.rawParents.forEach(p => {
         const subs = this.indexedSubsByParent[p.id] || [];
-        subs.forEach((s) => {
-          if (
-            s.currentHandler === this.currentUser.name ||
-            (s.assignee === this.currentUser.name &&
-              s.currentHandler === "Unassigned")
-          ) {
-            if (
-              s.status !== "completed" &&
-              s.status !== "archived" &&
-              s.status !== "aborted"
-            ) {
-              myTasks.push({
-                ...s,
-                parentName: p.title,
-                brandName: this.indexedBrandMap[p.brandId],
-                parentObj: p,
-              });
-            }
+        subs.forEach(s => {
+          // A. 權限判斷：球在我手上 OR (我是負責人且未指派)
+          if (s.currentHandler === this.currentUser.name || (s.assignee === this.currentUser.name && s.currentHandler === 'Unassigned')) {
+             // B. 狀態判斷：排除已完成、封存、終止
+             if (s.status !== 'completed' && s.status !== 'archived' && s.status !== 'aborted') {
+                
+                // C. 搜尋過濾邏輯
+                if (keyword) {
+                    const matchTitle = s.title.toLowerCase().includes(keyword);
+                    const matchParent = p.title.toLowerCase().includes(keyword);
+                    // 取得品牌名稱進行搜尋
+                    const brandName = this.indexedBrandMap[p.brandId] || "";
+                    const matchBrand = brandName.toLowerCase().includes(keyword);
+
+                    // 如果 標題、母專案、品牌 都不符合，就跳過
+                    if (!matchTitle && !matchParent && !matchBrand) {
+                        return; 
+                    }
+                }
+
+                // 符合條件，加入列表 (補上顯示所需的 parentName 等資訊)
+                myTasks.push({ ...s, parentName: p.title, brandName: this.indexedBrandMap[p.brandId], parentObj: p });
+             }
           }
         });
       });
 
-      // 2. 定義權重計算函式 (這是讓順序跟列表一樣的關鍵)
+      // 3. 定義排序權重函式 (讓看板順序跟列表模式一模一樣)
+      // 邏輯：嚴重延遲 > 快到期(落後) > 日期越早越前
       const getSortScore = (item) => {
-        const now = new Date();
-        const todayStr = now.toISOString().split("T")[0];
-
-        // A. 找出「比較基準日」 (如果有未完成的里程碑，用里程碑日期；否則用結束日)
-        let targetDateStr = item.endDate || "9999-12-31";
-        if (item.milestones && item.milestones.length > 0) {
-          // 找第一個還沒完成，且有日期的里程碑
-          const nextMs = item.milestones
-            .filter((m) => !m.isCompleted && m.date)
-            .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
-          if (nextMs) {
-            targetDateStr = nextMs.date;
+          const now = new Date();
+          const todayStr = now.toISOString().split('T')[0];
+          
+          // 找出「比較基準日」 (優先用最近的未完成里程碑，沒有才用結案日)
+          let targetDateStr = item.endDate || '9999-12-31';
+          if (item.milestones && item.milestones.length > 0) {
+              const nextMs = item.milestones
+                  .filter(m => !m.isCompleted && m.date)
+                  .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
+              if (nextMs) {
+                  targetDateStr = nextMs.date;
+              }
           }
-        }
 
-        // B. 計算權重 (越小越前面)
-        const targetDate = new Date(targetDateStr);
-        let score = targetDate.getTime(); // 基礎分數是時間戳記
+          const targetDate = new Date(targetDateStr);
+          let score = targetDate.getTime(); // 基礎分數是時間戳記
 
-        // C. 加上健康度加權 (延遲的要插隊到最前面)
-        // 這裡借用簡易判斷：如果基準日 < 今天，就是延遲 (Delay)
-        if (targetDateStr < todayStr) {
-          score -= 1000000000000; // 扣超大分數，保證排第一
-        }
-        // 如果基準日 < 今天+2天，就是落後 (Lag)
-        else if (
-          new Date(now.getTime() + 2 * 86400000).toISOString().split("T")[0] >
-          targetDateStr
-        ) {
-          score -= 100000000000; // 扣大分數，排第二
-        }
+          // 加權扣分 (讓急件排到最上面，分數越小越前面)
+          if (targetDateStr < todayStr) {
+              score -= 1000000000000; // 延遲 (Delay): 扣超大分，保證置頂
+          } else if (new Date(now.getTime() + 2*86400000).toISOString().split('T')[0] > targetDateStr) {
+              score -= 100000000000;  // 落後 (Lag): 扣大分，排第二順位
+          }
 
-        return score;
+          return score;
       };
 
-      // 3. 執行排序
+      // 4. 建立排序函式
       const sortFn = (a, b) => getSortScore(a) - getSortScore(b);
 
+      // 5. 回傳分類結果
       return {
-        // 待規劃 (依 ID 或建立時間)
-        inbox: myTasks.filter((t) => t.status === "setup"),
-
-        // 今日專注 (套用排序)
-        today: myTasks
-          .filter(
-            (t) =>
-              t.status === "in_progress" &&
-              !t.isWaitingForManager &&
-              focusIds.includes(t.id)
-          )
-          .sort(sortFn),
-
-        // 待辦清單 (套用排序)
-        backlog: myTasks
-          .filter(
-            (t) =>
-              t.status === "in_progress" &&
-              !t.isWaitingForManager &&
-              !focusIds.includes(t.id)
-          )
-          .sort(sortFn),
-
-        // 等待審核 (套用排序)
-        review: myTasks
-          .filter((t) => t.status === "in_progress" && t.isWaitingForManager)
-          .sort(sortFn),
+        // 待規劃 (Inbox): 通常依照建立順序，若想依照日期排也可加上 .sort(sortFn)
+        inbox: myTasks.filter(t => t.status === 'setup'), 
+        
+        // 今日專注 (Today): 依照急迫性排序
+        today: myTasks.filter(t => t.status === 'in_progress' && !t.isWaitingForManager && focusIds.includes(t.id)).sort(sortFn),
+        
+        // 待辦清單 (Backlog): 依照急迫性排序
+        backlog: myTasks.filter(t => t.status === 'in_progress' && !t.isWaitingForManager && !focusIds.includes(t.id)).sort(sortFn),
+        
+        // 等待審核 (Review): 依照急迫性排序
+        review: myTasks.filter(t => t.status === 'in_progress' && t.isWaitingForManager).sort(sortFn)
       };
     },
   },
@@ -2277,20 +2263,43 @@ const app = createApp({
       }
       return "專案結束";
     },
-    // [New] 取得看板日期的顏色樣式 (完全比照列表模式)
-    getKanbanDateClass(element) {
-      const health = this.getProjectHealth(element);
+// [修正] 看板日期顏色：直接判斷「顯示日期」的急迫性
+    getKanbanDateClass(item) {
+      // 1. 取得目前卡片顯示的日期 (可能是節點，也可能是結案日)
+      const targetDateStr = this.getTaskTargetDate(item);
+      if (!targetDateStr) return 'text-slate-400';
+
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
       
-      // 1. 嚴重延遲 (紅)
-      if (health.type === 'delay') {
-          return 'text-red-600'; 
+      // 計算三天後的日期 (用來判斷橘燈)
+      const lagDate = new Date();
+      lagDate.setDate(lagDate.getDate() + 3);
+      const lagDateStr = lagDate.toISOString().split('T')[0];
+
+      // 2. 判斷邏輯
+      // A. 已經過期 (紅字 + 閃爍動畫)
+      if (targetDateStr < todayStr) {
+          return 'text-red-600 animate-pulse'; 
       }
-      // 2. 進度落後/三天內到期 (橘)
-      if (health.type === 'lag') {
+      // B. 三天內要到期 (亮橘色)
+      if (targetDateStr <= lagDateStr) {
           return 'text-orange-500'; 
       }
-      // 3. 正常 (灰)
-      return 'text-slate-500'; 
+      // C. 還很久 (灰色)
+      return 'text-slate-400'; 
+    },
+
+    // [New] 計算專案里程碑完成度 (回傳 0~100 的數字)
+    getProjectProgress(item) {
+      // 如果沒有設定里程碑，進度就是 0
+      if (!item.milestones || item.milestones.length === 0) return 0;
+      
+      // 計算已完成的數量
+      const completed = item.milestones.filter(m => m.isCompleted).length;
+      
+      // 回傳百分比 (四雪五入)
+      return Math.round((completed / item.milestones.length) * 100);
     },
 
     openCalendarSideEvent(ev) {
