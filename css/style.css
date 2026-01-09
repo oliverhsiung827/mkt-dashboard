@@ -133,3 +133,36 @@ button.bg-indigo-600.text-white.py-3:hover {
         .nervous-hover:hover {
             animation: shiver 0.2s infinite; 
         }
+        /* --- 隱藏彩蛋樣式 --- */
+
+    /* 1. 駭客任務模式 (Matrix Mode) */
+    body.matrix-mode {
+        background-color: #0d0208 !important; /* 深黑背景 */
+        color: #00ff41 !important; /* 螢光綠文字 */
+        font-family: 'Courier New', Courier, monospace !important; /* 復古字體 */
+    }
+    /* 強制蓋過所有卡片的白底 */
+    body.matrix-mode .bg-white, 
+    body.matrix-mode .bg-slate-50, 
+    body.matrix-mode .bg-slate-100,
+    body.matrix-mode .bg-indigo-50,
+    body.matrix-mode .bg-orange-50 {
+        background-color: #000000 !important;
+        border-color: #003b00 !important;
+        color: #00ff41 !important;
+    }
+    body.matrix-mode .text-slate-500,
+    body.matrix-mode .text-slate-600,
+    body.matrix-mode .text-slate-700,
+    body.matrix-mode .text-slate-800 {
+        color: #008f11 !important; /* 暗綠色 */
+    }
+
+    /* 2. 迪斯可模式 (Disco Mode) */
+    @keyframes disco-bg {
+        0% { filter: hue-rotate(0deg); }
+        100% { filter: hue-rotate(360deg); }
+    }
+    body.disco-mode {
+        animation: disco-bg 3s linear infinite; /* 讓全站顏色瘋狂旋轉 */
+    }

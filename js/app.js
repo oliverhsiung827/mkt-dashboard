@@ -284,12 +284,12 @@ const app = createApp({
         touchStartThreshold: 3,
       },
       // [New] 彩蛋變數
-        pokeCount: 0, // 計算戳了幾下
-        headerTitle: "我的待辦任務", // 標題文字 (改成變數控制)
-        isHeaderSpinning: false, // 控制旋轉動畫
+      pokeCount: 0, // 計算戳了幾下
+      headerTitle: "我的待辦任務", // 標題文字 (改成變數控制)
+      isHeaderSpinning: false, // 控制旋轉動畫
     };
   },
-// [修正] 整合了路由、登入驗證、以及 Konami Code 監聽
+  // [修正] 整合了路由、登入驗證、以及 Konami Code 監聽
   async mounted() {
     // ------------------------------------------------------------
     // 1. 原有的 Router 網址監聽 (保持不動)
@@ -331,32 +331,43 @@ const app = createApp({
     // ------------------------------------------------------------
     // 3. [New] 彩蛋監聽器：Konami Code (上上下下左右左右 B A)
     // ------------------------------------------------------------
-    const konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+    const konamiCode = [
+      "ArrowUp",
+      "ArrowUp",
+      "ArrowDown",
+      "ArrowDown",
+      "ArrowLeft",
+      "ArrowRight",
+      "ArrowLeft",
+      "ArrowRight",
+      "b",
+      "a",
+    ];
     let cursor = 0;
 
-    window.addEventListener('keydown', (e) => {
-        // 取得按鍵 (轉小寫以防大小寫問題)
-        const key = e.key.toLowerCase();
-        // 取得目標按鍵 (也轉小寫)
-        const targetKey = konamiCode[cursor].toLowerCase();
+    window.addEventListener("keydown", (e) => {
+      // 取得按鍵 (轉小寫以防大小寫問題)
+      const key = e.key.toLowerCase();
+      // 取得目標按鍵 (也轉小寫)
+      const targetKey = konamiCode[cursor].toLowerCase();
 
-        // 比對按鍵
-        if (key === targetKey) {
-            cursor++; // 對了就下一關
-            
-            // 如果全部輸入正確
-            if (cursor === konamiCode.length) {
-                console.log("Konami Code Activated! 🚀");
-                
-                // 呼叫放煙火的方法 (請確認 methods 裡有寫 triggerSuperParty)
-                if (this.triggerSuperParty) {
-                    this.triggerSuperParty();
-                } 
-                cursor = 0; // 重置，準備下一次
-            }
-        } else {
-            cursor = 0; // 按錯任何一個鍵就重來
+      // 比對按鍵
+      if (key === targetKey) {
+        cursor++; // 對了就下一關
+
+        // 如果全部輸入正確
+        if (cursor === konamiCode.length) {
+          console.log("Konami Code Activated! 🚀");
+
+          // 呼叫放煙火的方法 (請確認 methods 裡有寫 triggerSuperParty)
+          if (this.triggerSuperParty) {
+            this.triggerSuperParty();
+          }
+          cursor = 0; // 重置，準備下一次
         }
+      } else {
+        cursor = 0; // 按錯任何一個鍵就重來
+      }
     });
   },
   computed: {
@@ -1000,7 +1011,7 @@ const app = createApp({
     },
   },
   watch: {
-    // [效能優化] 觸發載入歷史資料 (檢視專案詳情、歷史報表、歸檔區展開)
+    // 1. 監聽視圖切換 (載入歷史資料)
     currentView(newView) {
       if (newView === "history_report" || newView === "parent_detail") {
         this.loadHistoryData();
@@ -1017,22 +1028,41 @@ const app = createApp({
         this.loadHistoryData();
       }
     },
-
-    // [New] 監聽資料準備好沒 (針對重新整理網頁的情況)
+    // 2. 監聽資料準備好沒
     dataReady(isReady) {
       if (isReady) {
-        // 資料載入完畢後，立刻根據目前網址設定畫面
         this.handleRouteUpdate(this.$route);
       }
     },
-  },
-  watch: {
+    // 3. 搜尋框密技監聽器
+    subProjectSearch(val) {
+      if (!val) return;
+      const cmd = val.toLowerCase().trim();
+      if (cmd === "snow") {
+        this.triggerSnow();
+        this.subProjectSearch = "";
+      } else if (cmd === "matrix") {
+        document.body.classList.toggle("matrix-mode");
+        document.body.classList.remove("disco-mode");
+        this.subProjectSearch = "";
+      } else if (cmd === "disco") {
+        document.body.classList.toggle("disco-mode");
+        document.body.classList.remove("matrix-mode");
+        this.subProjectSearch = "";
+      } else if (cmd === "clean" || cmd === "reset") {
+        document.body.classList.remove("matrix-mode");
+        document.body.classList.remove("disco-mode");
+        this.subProjectSearch = "";
+      }
+    },
+    // 4. 監聽今日專注清空
     "kanbanColumns.today"(newVal) {
       if (newVal.length === 0) {
         this.refreshCheer();
       }
     },
   },
+
   methods: {
     refreshCheer() {
       const idx = Math.floor(Math.random() * this.cheerQuotes.length);
@@ -2219,158 +2249,89 @@ const app = createApp({
       // this.currentView = "parent_detail";
     },
 
-    // [New] 同步專注清單到 Firebase (重要：讓今日專注能被儲存)
-    async syncFocusIdsToFirebase() {
-      if (!this.currentUserId) return;
-      try {
-        await updateDoc(doc(db, "users", this.currentUserId), {
-          focusIds: this.localFocusIds,
-        });
-      } catch (e) {
-        console.error("同步失敗", e);
-      }
-    },
-
-    // [New] 看板拖曳事件處理 (核心邏輯)
-    async onKanbanChange(evt, targetColumn) {
-      // VueDraggable 的 change 事件包含 added, removed, moved
-      // 我們只關心 "added" (代表有東西被拖進這個欄位)
-      if (evt.added) {
-        const item = evt.added.element;
-
-        // 取得來源欄位 (簡單判斷)
-        let fromColumn = "backlog";
-        if (item.status === "setup") fromColumn = "inbox";
-        else if (item.isWaitingForManager) fromColumn = "review";
-        else if (this.localFocusIds.includes(item.id)) fromColumn = "today";
-
-        console.log(`從 ${fromColumn} 拖到 ${targetColumn}`, item.title);
-
-        // ==========================================
-        //  情境 1: 拖進 [🔥 今日專注]
-        // ==========================================
-        if (targetColumn === "today") {
-          // 1. 加入 ID 到清單
-          if (!this.localFocusIds.includes(item.id)) {
-            this.localFocusIds.push(item.id);
-            this.syncFocusIdsToFirebase(); // 存到雲端
-          }
-
-          // 2. 如果是從 [待規劃] 來的，要自動開案
-          if (item.status === "setup") {
-            this.currentSubProject = item;
-            this.currentParentProject = item.parentObj;
-
-            // 自動轉為執行中
-            item.status = "in_progress";
-            await updateDoc(doc(db, "sub_projects", item.id), {
-              status: "in_progress",
-            });
-
-            // 如果您想要強制跳出模板視窗，可以在這裡呼叫 openSetupModal 之類的
-            // alert(`已將「${item.title}」加入今日專注並設為執行中`);
-          }
-
-          // 3. 如果是從 [等待審核] 拉回來，解除等待狀態
-          if (item.isWaitingForManager) {
-            this.currentSubProject = item;
-            await this.finishManagerCheck();
-          }
-        }
-
-        // ==========================================
-        //  情境 2: 拖進 [🔵 待辦清單] (移出今日專注)
-        // ==========================================
-        else if (targetColumn === "backlog") {
-          // 1. 從專注清單移除
-          const idx = this.localFocusIds.indexOf(item.id);
-          if (idx > -1) {
-            this.localFocusIds.splice(idx, 1);
-            this.syncFocusIdsToFirebase();
-          }
-
-          // 2. Setup -> Backlog (開工但不急)
-          if (item.status === "setup") {
-            item.status = "in_progress";
-            await updateDoc(doc(db, "sub_projects", item.id), {
-              status: "in_progress",
-            });
-          }
-
-          // 3. Review -> Backlog (審核完回來)
-          if (item.isWaitingForManager) {
-            this.currentSubProject = item;
-            await this.finishManagerCheck();
-          }
-        }
-
-        // ==========================================
-        //  情境 3: 拖進 [⏳ 等待審核]
-        // ==========================================
-        else if (targetColumn === "review") {
-          // 1. 從專注清單移除 (因為卡住了，不用專注了)
-          const idx = this.localFocusIds.indexOf(item.id);
-          if (idx > -1) {
-            this.localFocusIds.splice(idx, 1);
-            this.syncFocusIdsToFirebase();
-          }
-
-          // 2. 觸發審核流程
-          this.currentSubProject = item;
-          await this.startManagerCheck();
-        }
-      }
-    },
     pokeHeader() {
-            this.pokeCount++;
-            this.isHeaderSpinning = true;
+      this.pokeCount++;
+      this.isHeaderSpinning = true;
 
-            // 讓 icon 轉一圈，0.5秒後停下來
-            setTimeout(() => {
-                this.isHeaderSpinning = false;
-            }, 500);
+      // 讓 icon 轉一圈，0.5秒後停下來
+      setTimeout(() => {
+        this.isHeaderSpinning = false;
+      }, 500);
 
-            // 如果連續戳了 5 下
-            if (this.pokeCount >= 5) {
-                const originalTitle = "我的待辦任務";
-                // 變身！
-                this.headerTitle = "別戳了！快去工作！💢";
-                
-                // 3秒後氣消
-                setTimeout(() => {
-                    this.headerTitle = originalTitle;
-                    this.pokeCount = 0; // 重置計數
-                }, 3000);
+      // 如果連續戳了 5 下
+      if (this.pokeCount >= 5) {
+        const originalTitle = "我的待辦任務";
+        // 變身！
+        this.headerTitle = "別戳了！快去工作！💢";
+
+        // 3秒後氣消
+        setTimeout(() => {
+          this.headerTitle = originalTitle;
+          this.pokeCount = 0; // 重置計數
+        }, 3000);
+      }
+    },
+
+    // 👇👇👇 [請補上這一段] 超級煙火函式 (Konami Code 用) 👇👇👇
+    triggerSuperParty() {
+      if (!window.confetti) return;
+      console.log("Konami Code Activated! 🚀");
+
+      const duration = 3000;
+      const end = Date.now() + duration;
+
+      (function frame() {
+        confetti({
+          particleCount: 5,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+        });
+        confetti({
+          particleCount: 5,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      })();
+    },
+
+    // [New] 彩蛋：下雪特效
+    triggerSnow() {
+        if (!window.confetti) return;
+        
+        const duration = 5000; // 下 5 秒
+        const end = Date.now() + duration;
+
+        (function frame() {
+            // 產生白色的圓形紙片，模擬雪花
+            confetti({
+                particleCount: 1,
+                startVelocity: 0,
+                ticks: 200,
+                origin: {
+                    x: Math.random(),
+                    // 從最上面落下
+                    y: Math.random() * 0.1 
+                },
+                colors: ['#ffffff'], // 雪是白的
+                shapes: ['circle'],  // 雪是圓的
+                gravity: 0.6,        // 飄慢一點
+                scalar: 0.8,         // 小一點
+                drift: 0             // 直直落下
+            });
+
+            if (Date.now() < end) {
+                requestAnimationFrame(frame);
             }
-        },
-
-        // 👇👇👇 [請補上這一段] 超級煙火函式 (Konami Code 用) 👇👇👇
-        triggerSuperParty() {
-            if (!window.confetti) return;
-            console.log("Konami Code Activated! 🚀");
-
-            const duration = 3000;
-            const end = Date.now() + duration;
-
-            (function frame() {
-                confetti({
-                    particleCount: 5,
-                    angle: 60,
-                    spread: 55,
-                    origin: { x: 0 }
-                });
-                confetti({
-                    particleCount: 5,
-                    angle: 120,
-                    spread: 55,
-                    origin: { x: 1 }
-                });
-
-                if (Date.now() < end) {
-                    requestAnimationFrame(frame);
-                }
-            }());
-        },
+        }());
+        
+        console.log("❄️ Winter is coming...");
+    },
 
     selectSubProject(sp, parent) {
       // [修改] 改用路由跳轉
@@ -3192,14 +3153,6 @@ const app = createApp({
       }
     },
 
-    navigateTo(pageName) {
-      this.showMobileSidebar = false; // 關閉手機側邊欄
-
-      // 透過 Router 去改變網址 -> 網址變了 -> 觸發上面的 handleRouteUpdate -> 畫面才會變
-      if (pageName === "dashboard") this.$router.push("/");
-      if (pageName === "report") this.$router.push("/report");
-      if (pageName === "workspace") this.$router.push("/workspace");
-    },
     // 在 methods: { ... } 裡面，請直接替換掉原本的 handleRouteUpdate
 
     // [最終修正版] 路由處理核心
@@ -3377,15 +3330,11 @@ const app = createApp({
 
       const template = this.projectTemplates[this.selectedTemplateIndex];
       const baseDateStr = this.setupForm.startDate;
-
-      // 判斷基礎日期是否有效
       const hasBaseDate = baseDateStr && baseDateStr.trim() !== "";
       const baseDate = hasBaseDate ? new Date(baseDateStr) : null;
 
       template.milestones.forEach((tm) => {
-        let dateStr = ""; // 預設為空白
-
-        // 只有在「有基礎日期」且「模板有設定天數」時，才去計算
+        let dateStr = "";
         if (hasBaseDate && tm.daysOffset !== undefined) {
           const targetDate = new Date(baseDate);
           targetDate.setDate(baseDate.getDate() + tm.daysOffset);
@@ -3393,16 +3342,14 @@ const app = createApp({
             timeZone: "Asia/Taipei",
           });
         }
-
         this.setupForm.milestones.push({
           id: "ms" + Date.now() + Math.floor(Math.random() * 1000),
           title: tm.title,
-          date: dateStr, // 沒得算就留白
+          date: dateStr,
           isCompleted: false,
         });
       });
 
-      // 如果有日期，試著自動抓最後一天當結束日
       const validDates = this.setupForm.milestones.filter((m) => m.date !== "");
       if (validDates.length > 0) {
         validDates.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -3411,136 +3358,106 @@ const app = createApp({
 
       alert(`模板「${template.name}」載入完成！`);
       this.selectedTemplateIndex = "";
+    }, // <--- 這裡原本是 methods 的結束點，現在只是 applyTemplate 的結束
+
+    // 👇👇👇 這些函式必須被包在 methods 裡面 👇👇👇
+
+    // [New] 同步專注清單到 Firebase
+    async syncFocusIdsToFirebase() {
+      if (!this.currentUserId) return;
+      try {
+        await updateDoc(doc(db, "users", this.currentUserId), {
+          focusIds: this.localFocusIds,
+        });
+      } catch (e) {
+        console.error("同步失敗", e);
+      }
+    },
+
+    // [New] 看板拖曳事件處理
+    async onKanbanChange(evt, targetColumn) {
+      if (evt.added) {
+        const item = evt.added.element;
+        const fromColumn = this.getDragSourceColumn(item);
+
+        console.log(`從 ${fromColumn} 拖到 ${targetColumn}`, item.title);
+
+        if (targetColumn === "today") {
+          if (!this.localFocusIds.includes(item.id)) {
+            this.localFocusIds.push(item.id);
+            this.syncFocusIdsToFirebase();
+          }
+          if (item.status === "setup") {
+            this.currentSubProject = item;
+            this.currentParentProject = item.parentObj;
+            item.status = "in_progress";
+            await updateDoc(doc(db, "sub_projects", item.id), {
+              status: "in_progress",
+            });
+          }
+          if (item.isWaitingForManager) {
+            this.currentSubProject = item;
+            await this.finishManagerCheck();
+          }
+        } else if (targetColumn === "backlog") {
+          const idx = this.localFocusIds.indexOf(item.id);
+          if (idx > -1) {
+            this.localFocusIds.splice(idx, 1);
+            this.syncFocusIdsToFirebase();
+          }
+          if (item.status === "setup") {
+            item.status = "in_progress";
+            await updateDoc(doc(db, "sub_projects", item.id), {
+              status: "in_progress",
+            });
+          }
+          if (item.isWaitingForManager) {
+            this.currentSubProject = item;
+            await this.finishManagerCheck();
+          }
+        } else if (targetColumn === "review") {
+          const idx = this.localFocusIds.indexOf(item.id);
+          if (idx > -1) {
+            this.localFocusIds.splice(idx, 1);
+            this.syncFocusIdsToFirebase();
+          }
+          this.currentSubProject = item;
+          await this.startManagerCheck();
+        } else if (targetColumn === "done") {
+          const idx = this.localFocusIds.indexOf(item.id);
+          if (idx > -1) {
+            this.localFocusIds.splice(idx, 1);
+            this.syncFocusIdsToFirebase();
+          }
+          this.currentSubProject = item;
+          if (confirm(`確定要將「${item.title}」結案嗎？`)) {
+            item.status = "completed";
+            item.finalDelayDays = 0;
+            item.completedDate = new Date().toISOString().split("T")[0];
+            await updateDoc(doc(db, "sub_projects", item.id), {
+              status: "completed",
+              completedDate: item.completedDate,
+              finalDelayDays: 0,
+            });
+            this.triggerConfetti();
+            this.historySubs.push(item);
+            this.buildIndexes();
+          } else {
+            this.fetchDashboardData();
+          }
+        }
+      }
+    },
+
+    // 輔助函式
+    getDragSourceColumn(item) {
+      if (item.status === "setup") return "inbox";
+      if (item.isWaitingForManager) return "review";
+      if (this.localFocusIds.includes(item.id)) return "today";
+      return "backlog";
     },
   },
-  // [New] 同步專注清單到 Firebase
-  async syncFocusIdsToFirebase() {
-    if (!this.currentUserId) return;
-    try {
-      await updateDoc(doc(db, "users", this.currentUserId), {
-        focusIds: this.localFocusIds,
-      });
-      // console.log("專注清單已同步雲端");
-    } catch (e) {
-      console.error("同步失敗", e);
-    }
-  },
-
-  // [New] 看板拖曳事件處理 (核心)
-  async onKanbanChange(evt, targetColumn) {
-    // VueDraggable 的 change 事件包含 added, removed, moved
-    if (evt.added) {
-      const item = evt.added.element;
-      const fromColumn = this.getDragSourceColumn(item); // 需要寫一個小 helper 找來源，或者直接從 item 狀態判斷
-
-      console.log(`從 ${fromColumn} 拖到 ${targetColumn}`, item.title);
-
-      // --- 1. 拖到 [今日專注] ---
-      if (targetColumn === "today") {
-        // 加入 ID 到清單
-        if (!this.localFocusIds.includes(item.id)) {
-          this.localFocusIds.push(item.id);
-          this.syncFocusIdsToFirebase();
-        }
-        // 如果是從 [待規劃] 來的，要觸發模板
-        if (item.status === "setup") {
-          this.currentSubProject = item;
-          this.currentParentProject = item.parentObj; // 確保有母專案參照
-          // 這裡簡單處理：直接設為執行中 (您可以在這裡加入 openSetupModal 邏輯)
-          item.status = "in_progress";
-          await updateDoc(doc(db, "sub_projects", item.id), {
-            status: "in_progress",
-          });
-          alert(`「${item.title}」已加入今日專注並開始執行！`);
-        }
-        // 如果是從 [等待審核] 拉回來，觸發解除等待
-        if (item.isWaitingForManager) {
-          this.currentSubProject = item;
-          await this.finishManagerCheck();
-        }
-      }
-
-      // --- 2. 拖到 [待辦清單] ---
-      else if (targetColumn === "backlog") {
-        // 從專注清單移除
-        const idx = this.localFocusIds.indexOf(item.id);
-        if (idx > -1) {
-          this.localFocusIds.splice(idx, 1);
-          this.syncFocusIdsToFirebase();
-        }
-        // Setup -> Backlog (開工但不急)
-        if (item.status === "setup") {
-          item.status = "in_progress";
-          await updateDoc(doc(db, "sub_projects", item.id), {
-            status: "in_progress",
-          });
-        }
-        // Review -> Backlog (審核完回來)
-        if (item.isWaitingForManager) {
-          this.currentSubProject = item;
-          await this.finishManagerCheck();
-        }
-      }
-
-      // --- 3. 拖到 [等待審核] ---
-      else if (targetColumn === "review") {
-        // 從專注清單移除 (因為卡住了，不用專注了)
-        const idx = this.localFocusIds.indexOf(item.id);
-        if (idx > -1) {
-          this.localFocusIds.splice(idx, 1);
-          this.syncFocusIdsToFirebase();
-        }
-
-        this.currentSubProject = item;
-        await this.startManagerCheck();
-      }
-
-      // --- 4. 拖到 [已完成] ---
-      else if (targetColumn === "done") {
-        // 從專注清單移除
-        const idx = this.localFocusIds.indexOf(item.id);
-        if (idx > -1) {
-          this.localFocusIds.splice(idx, 1);
-          this.syncFocusIdsToFirebase();
-        }
-
-        this.currentSubProject = item;
-        // 觸發結案 (這會噴彩帶)
-        // 這裡我們模擬填寫工作日誌為當天，並直接結案
-        if (confirm(`確定要將「${item.title}」結案嗎？`)) {
-          // 簡單結案邏輯，您也可以跳出 modal
-          item.status = "completed";
-          item.finalDelayDays = 0;
-          item.completedDate = new Date().toISOString().split("T")[0];
-          await updateDoc(doc(db, "sub_projects", item.id), {
-            status: "completed",
-            completedDate: item.completedDate,
-            finalDelayDays: 0,
-          });
-          this.triggerConfetti();
-
-          // 把他加到歷史陣列以免消失
-          this.historySubs.push(item);
-          this.buildIndexes();
-        } else {
-          // 如果取消，要重新整理畫面把卡片彈回去 (略)
-          this.fetchDashboardData();
-        }
-        
-      }
-    }
-  },
-
-  // 輔助函式：判斷來源 (因為 VueDraggable 沒直接給 fromColumn)
-  getDragSourceColumn(item) {
-    if (item.status === "setup") return "inbox";
-    if (item.isWaitingForManager) return "review";
-    if (this.localFocusIds.includes(item.id)) return "today";
-    return "backlog";
-  },
-  
 });
-
 app.use(router); // 掛載路由
 app.component("vuedraggable", window.vuedraggable);
 app.mount("#app");
