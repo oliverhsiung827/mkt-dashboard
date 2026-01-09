@@ -221,6 +221,19 @@ const app = createApp({
       isResizingSidebar: false,
       predefinedTags: ["急件", "設計", "數位廣告", "官網"],
       newTagInput: "", // 用來暫存輸入框的內容
+      // [New] 專案模板定義 (SOP 資料庫)
+      projectTemplates: [
+        {
+          name: "數位廣告規劃",
+          milestones: [
+            { title: "提給廠商brief" },
+            { title: "收到cue" },
+            { title: "完成簽呈並上簽" },
+            { title: "簽呈完成" },
+          ],
+        },
+      ],
+      selectedTemplateIndex: "", // 用來綁定下拉選單
     };
   },
   async mounted() {
@@ -1345,7 +1358,7 @@ const app = createApp({
       this.showSubProjectModal = true;
     },
 
-// [New] 新增標籤 (用於開案或編輯時)
+    // [New] 新增標籤 (用於開案或編輯時)
     addTag(targetForm) {
       const val = this.newTagInput.trim();
       if (!val) return;
@@ -1361,13 +1374,17 @@ const app = createApp({
     },
     // [New] 取得標籤樣式 (根據文字內容給不同顏色，增加識別度)
     getTagStyle(tagName) {
-      if (tagName === '急件') return 'bg-red-100 text-red-600 border border-red-200';
-      if (tagName === '設計') return 'bg-purple-100 text-purple-600 border border-purple-200';
-      if (tagName === '數位廣告') return 'bg-blue-100 text-blue-600 border border-blue-200';
-      if (tagName === '官網') return 'bg-pink-100 text-pink-600 border border-pink-200';
-      return 'bg-slate-100 text-slate-600 border border-slate-200'; // 預設灰色
+      if (tagName === "急件")
+        return "bg-red-100 text-red-600 border border-red-200";
+      if (tagName === "設計")
+        return "bg-purple-100 text-purple-600 border border-purple-200";
+      if (tagName === "數位廣告")
+        return "bg-blue-100 text-blue-600 border border-blue-200";
+      if (tagName === "官網")
+        return "bg-pink-100 text-pink-600 border border-pink-200";
+      return "bg-slate-100 text-slate-600 border border-slate-200"; // 預設灰色
     },
-    
+
     async saveSubProject() {
       if (!this.subProjectForm.title) return alert("請填寫名稱");
       this.isSubmitting = true;
@@ -1430,11 +1447,13 @@ const app = createApp({
       this.showEditBranchModal = true;
     },
 
-async saveEditedBranch() {
+    async saveEditedBranch() {
       this.isSubmitting = true;
       try {
         // 1. [防呆] 日期檢查
-        if (this.editBranchForm.startDate < this.currentParentProject.startDate) {
+        if (
+          this.editBranchForm.startDate < this.currentParentProject.startDate
+        ) {
           return alert(
             `錯誤：子專案開始日 (${this.editBranchForm.startDate}) 不可早於母專案開始日 (${this.currentParentProject.startDate})`
           );
@@ -1443,7 +1462,7 @@ async saveEditedBranch() {
         // 2. 準備要更新的資料物件 (確保 tags 存在)
         const updateData = {
           ...this.editBranchForm,
-          tags: this.editBranchForm.tags || [] // ★ 確保寫入標籤陣列
+          tags: this.editBranchForm.tags || [], // ★ 確保寫入標籤陣列
         };
 
         // 3. 寫入 Firestore 資料庫
@@ -1471,7 +1490,6 @@ async saveEditedBranch() {
         this.showEditBranchModal = false;
         // 如果您有做 Toast，可以加這一行
         // this.showToast('更新成功', '子專案設定已儲存', 'success');
-
       } catch (e) {
         console.error("更新失敗", e);
         alert("儲存變更失敗，請檢查網路");
@@ -2892,6 +2910,48 @@ async saveEditedBranch() {
       if (pageName === "dashboard") this.$router.push("/");
       if (pageName === "report") this.$router.push("/report");
       if (pageName === "workspace") this.$router.push("/workspace");
+    },
+    // [New] 應用模板 (自動計算日期)
+// [New] 應用模板
+    applyTemplate() {
+      if (this.selectedTemplateIndex === "") return;
+      
+      const template = this.projectTemplates[this.selectedTemplateIndex];
+      // 注意：如果您希望連「子專案開始日」都不用填就能載入模板，可以把下面這三行註解掉
+      //const baseDateStr = this.setupForm.startDate;
+     // if (!baseDateStr) {
+        // alert("請先設定「子專案開始日」，系統才能幫您推算時程！");
+       //  return;
+     //}
+      const baseDate = new Date(baseDateStr);
+
+      template.milestones.forEach(tm => {
+        let dateStr = ""; // 預設為空白
+
+        // ★ 關鍵修改：只有當模板有設定「天數 (daysOffset)」時，才去計算日期
+        if (tm.daysOffset !== undefined) {
+            const targetDate = new Date(baseDate);
+            targetDate.setDate(baseDate.getDate() + tm.daysOffset);
+            dateStr = targetDate.toLocaleDateString("en-CA", { timeZone: "Asia/Taipei" });
+        }
+
+        this.setupForm.milestones.push({
+          id: "ms" + Date.now() + Math.floor(Math.random()*1000),
+          title: tm.title,
+          date: dateStr, // 這裡會是日期字串或是 "" (空白)
+          isCompleted: false
+        });
+      });
+
+      // 只有當所有節點都有日期時，才自動更新結束日，不然就留給使用者自己填
+      const hasAllDates = this.setupForm.milestones.every(m => m.date !== "");
+      if (hasAllDates && this.setupForm.milestones.length > 0) {
+          this.setupForm.milestones.sort((a,b) => new Date(a.date) - new Date(b.date));
+          this.setupForm.endDate = this.setupForm.milestones[this.setupForm.milestones.length - 1].date;
+      }
+
+      alert(`清單已載入！\n已匯入「${template.name}」`);
+      this.selectedTemplateIndex = ""; 
     },
   },
 });
