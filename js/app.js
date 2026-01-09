@@ -47,6 +47,7 @@ const DataFactory = {
     events: [],
     links: [],
     comments: [],
+    tags: input.tags || [],
     delayReason: "",
     delayRemark: "",
     finalDelayDays: 0,
@@ -218,6 +219,8 @@ const app = createApp({
       // [New] 側邊欄調整相關
       sidebarWidth: 256, // 預設寬度 (px)
       isResizingSidebar: false,
+      predefinedTags: ["急件", "設計", "數位廣告", "官網"],
+      newTagInput: "", // 用來暫存輸入框的內容
     };
   },
   async mounted() {
@@ -1342,6 +1345,29 @@ const app = createApp({
       this.showSubProjectModal = true;
     },
 
+// [New] 新增標籤 (用於開案或編輯時)
+    addTag(targetForm) {
+      const val = this.newTagInput.trim();
+      if (!val) return;
+      if (!targetForm.tags) targetForm.tags = [];
+      if (!targetForm.tags.includes(val)) {
+        targetForm.tags.push(val);
+      }
+      this.newTagInput = "";
+    },
+    // [New] 移除標籤
+    removeTag(targetForm, index) {
+      targetForm.tags.splice(index, 1);
+    },
+    // [New] 取得標籤樣式 (根據文字內容給不同顏色，增加識別度)
+    getTagStyle(tagName) {
+      if (tagName === '急件') return 'bg-red-100 text-red-600 border border-red-200';
+      if (tagName === '設計') return 'bg-purple-100 text-purple-600 border border-purple-200';
+      if (tagName === '數位廣告') return 'bg-blue-100 text-blue-600 border border-blue-200';
+      if (tagName === '官網') return 'bg-pink-100 text-pink-600 border border-pink-200';
+      return 'bg-slate-100 text-slate-600 border border-slate-200'; // 預設灰色
+    },
+    
     async saveSubProject() {
       if (!this.subProjectForm.title) return alert("請填寫名稱");
       this.isSubmitting = true;
@@ -1404,24 +1430,32 @@ const app = createApp({
       this.showEditBranchModal = true;
     },
 
-    async saveEditedBranch() {
+async saveEditedBranch() {
       this.isSubmitting = true;
       try {
-        // [防呆] 編輯檢查
-        if (
-          this.editBranchForm.startDate < this.currentParentProject.startDate
-        ) {
+        // 1. [防呆] 日期檢查
+        if (this.editBranchForm.startDate < this.currentParentProject.startDate) {
           return alert(
             `錯誤：子專案開始日 (${this.editBranchForm.startDate}) 不可早於母專案開始日 (${this.currentParentProject.startDate})`
           );
         }
 
+        // 2. 準備要更新的資料物件 (確保 tags 存在)
+        const updateData = {
+          ...this.editBranchForm,
+          tags: this.editBranchForm.tags || [] // ★ 確保寫入標籤陣列
+        };
+
+        // 3. 寫入 Firestore 資料庫
         await updateDoc(
           doc(db, "sub_projects", this.currentSubProject.id),
-          this.editBranchForm
+          updateData
         );
+
+        // 4. 檢查是否更換負責人，發送通知
+        // (注意：此時 this.currentSubProject 還是舊資料，正好可以用來比對)
         if (this.editBranchForm.assignee !== this.currentSubProject.assignee) {
-          this.sendNotification(
+          await this.sendNotification(
             this.editBranchForm.assignee,
             "task",
             `您被指派負責專案: ${this.editBranchForm.title}`,
@@ -1429,7 +1463,18 @@ const app = createApp({
             this.currentSubProject.id
           );
         }
+
+        // 5. [重要] 手動更新本地快取 (因為移除了 onSnapshot)
+        // 使用 Object.assign 直接修改當前物件，讓畫面立刻變更
+        Object.assign(this.currentSubProject, updateData);
+
         this.showEditBranchModal = false;
+        // 如果您有做 Toast，可以加這一行
+        // this.showToast('更新成功', '子專案設定已儲存', 'success');
+
+      } catch (e) {
+        console.error("更新失敗", e);
+        alert("儲存變更失敗，請檢查網路");
       } finally {
         this.isSubmitting = false;
       }

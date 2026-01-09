@@ -836,6 +836,13 @@
                                                     v-else-if="getProjectHealth(item.sub).type === 'lag'"
                                                     class="ml-2 text-[10px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded font-bold border border-orange-200">落後
                                                     {{ getProjectHealth(item.sub).days }} 天</span></div>
+                                            <div class="flex flex-wrap gap-1 mt-1.5 mb-1"
+                                                v-if="item.sub.tags && item.sub.tags.length > 0">
+                                                <span v-for="tag in item.sub.tags" :key="tag" :class="getTagStyle(tag)"
+                                                    class="text-[9px] px-1.5 py-0.5 rounded font-bold">
+                                                    #{{ tag }}
+                                                </span>
+                                            </div>
                                             <div class="text-xs text-indigo-600 mt-1 font-bold flex items-center"><i
                                                     class="fas fa-stopwatch mr-1"></i> 已持有 {{
                                                 getDaysHeld(item.sub.lastHandoffDate) }} 天</div>
@@ -896,6 +903,14 @@
                                                     v-if="!item.isParent && getProjectHealth(item.sub).type === 'lag'"
                                                     class="ml-2 bg-orange-100 text-orange-600 text-[10px] px-1 rounded">落後
                                                     {{ getProjectHealth(item.sub).days }} 天</span></div>
+
+                                            <div class="flex flex-wrap gap-1 mt-1 mb-1"
+                                                v-if="!item.isParent && item.sub.tags && item.sub.tags.length > 0">
+                                                <span v-for="tag in item.sub.tags" :key="tag" :class="getTagStyle(tag)"
+                                                    class="text-[9px] px-1.5 py-0.5 rounded font-bold">
+                                                    #{{ tag }}
+                                                </span>
+                                            </div>
                                             <div class="text-xs text-slate-500 mt-1">目前處理：<span
                                                     class="font-bold text-indigo-600">{{ item.sub.currentHandler
                                                     }}</span></div>
@@ -1139,6 +1154,13 @@
                                                 <h3
                                                     class="font-bold text-lg text-slate-800 group-hover:text-indigo-600">
                                                     {{ branch.title }}</h3>
+                                                <div class="flex flex-wrap gap-1 mt-1 mb-2">
+                                                    <span v-for="tag in (branch.tags || [])" :key="tag"
+                                                        :class="getTagStyle(tag)"
+                                                        class="text-[9px] px-1.5 py-0.5 rounded font-bold">
+                                                        #{{ tag }}
+                                                    </span>
+                                                </div>
                                                 <div class="text-xs text-slate-500 mt-1 flex gap-2"><span>👤 負責: {{
                                                         branch.assignee }}</span><span>⚡ 執行: {{ branch.currentHandler
                                                         }}</span></div>
@@ -1862,11 +1884,51 @@
                                             :disabled="currentUser.role !== 'admin'">
                                     </div>
                                 </div>
-                                <div><label class="text-xs font-bold text-slate-500 block mb-1">目前負責人
-                                        (Assignee)</label><select v-model="editBranchForm.assignee"
+
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1">目前負責人 (Assignee)</label>
+                                    <select v-model="editBranchForm.assignee"
                                         class="w-full border rounded-lg px-3 py-2">
                                         <option v-for="u in users" :value="u.name">{{ u.name }}</option>
-                                    </select></div>
+                                    </select>
+                                </div>
+
+                                <div class="mt-4">
+                                    <label class="block text-xs font-bold text-slate-500 mb-1">標籤 (Tags)</label>
+
+                                    <div class="flex flex-wrap gap-2 mb-2">
+                                        <span v-for="(tag, idx) in (editBranchForm.tags||[])" :key="idx"
+                                            :class="getTagStyle(tag)"
+                                            class="px-2 py-1 rounded text-xs font-bold flex items-center">
+                                            {{ tag }}
+                                            <button @click="removeTag(editBranchForm, idx)"
+                                                class="ml-1 hover:text-slate-800">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </span>
+                                    </div>
+
+                                    <div class="flex gap-2">
+                                        <input v-model="newTagInput" @keyup.enter="addTag(editBranchForm)"
+                                            placeholder="輸入標籤按Enter..."
+                                            class="flex-1 border rounded-lg px-3 py-1 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <button @click="addTag(editBranchForm)"
+                                            class="bg-slate-100 text-slate-600 px-3 py-1 rounded hover:bg-slate-200">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+
+                                    <div class="flex flex-wrap gap-1 mt-2">
+                                        <span v-for="t in predefinedTags" :key="t"
+                                            @click="newTagInput=t; addTag(editBranchForm)"
+                                            class="cursor-pointer text-[10px] bg-slate-50 text-slate-400 border border-slate-200 px-2 py-0.5 rounded hover:bg-indigo-50 hover:text-indigo-500 transition">
+                                            {{ t }}
+                                        </span>
+                                    </div>
+                                </div>
+
+
+
                                 <div class="border-t pt-4 mt-4 bg-orange-50 p-3 rounded border-orange-100">
                                     <label class="text-xs font-bold text-orange-700 block mb-1">延遲原因標記 (執行中可填)</label>
                                     <select v-model="editBranchForm.delayReason"
@@ -1920,8 +1982,36 @@
                         class="fixed inset-0 z-[9999] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center fade-in">
                         <div class="bg-white w-[500px] rounded-2xl shadow-2xl p-8 space-y-5">
                             <h3 class="font-bold text-xl text-slate-800">開立子專案</h3><input v-model="subProjectForm.title"
-                                class="w-full border rounded-lg px-4 py-2" placeholder="子專案名稱"><select
-                                v-model="subProjectForm.assignee" class="w-full border rounded-lg px-4 py-2 bg-white">
+                                class="w-full border rounded-lg px-4 py-2" placeholder="子專案名稱">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">標籤 (Tags)</label>
+                                <div class="flex flex-wrap gap-2 mb-2">
+                                    <span v-for="(tag, idx) in (subProjectForm.tags||[])" :key="idx"
+                                        :class="getTagStyle(tag)"
+                                        class="px-2 py-1 rounded text-xs font-bold flex items-center">
+                                        {{ tag }}
+                                        <button @click="removeTag(subProjectForm, idx)"
+                                            class="ml-1 hover:text-slate-800"><i class="fas fa-times"></i></button>
+                                    </span>
+                                </div>
+                                <div class="flex gap-2">
+                                    <input v-model="newTagInput" @keyup.enter="addTag(subProjectForm)"
+                                        placeholder="輸入標籤按Enter..."
+                                        class="flex-1 border rounded-lg px-3 py-1 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <button @click="addTag(subProjectForm)"
+                                        class="bg-slate-100 text-slate-600 px-3 py-1 rounded hover:bg-slate-200"><i
+                                            class="fas fa-plus"></i></button>
+                                </div>
+                                <div class="flex flex-wrap gap-1 mt-2">
+                                    <span v-for="t in predefinedTags" :key="t"
+                                        @click="newTagInput=t; addTag(subProjectForm)"
+                                        class="cursor-pointer text-[10px] bg-slate-50 text-slate-400 border border-slate-200 px-2 py-0.5 rounded hover:bg-indigo-50 hover:text-indigo-500 transition">
+                                        {{ t }}
+                                    </span>
+                                </div>
+                            </div>
+                            <select v-model="subProjectForm.assignee"
+                                class="w-full border rounded-lg px-4 py-2 bg-white">
                                 <option v-for="u in users" :value="u.name">{{ u.name }} ({{ teamMap[u.team] }})</option>
                             </select>
                             <div class="flex justify-end space-x-3 pt-4"><button @click="showSubProjectModal=false"
