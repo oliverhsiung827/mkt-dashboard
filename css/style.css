@@ -104,3 +104,8 @@ button.bg-indigo-600.text-white.py-3:hover {
     background-color: #fabe00 !important;
     border-color: #fff !important;
 }
+.ghost-card {
+  opacity: 0.5;
+  background: #f1f5f9;
+  border: 2px dashed #cbd5e1;
+}

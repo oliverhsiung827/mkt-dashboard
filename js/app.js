@@ -86,6 +86,7 @@ const router = VueRouter.createRouter({
 const app = createApp({
   data() {
     return {
+      taskViewMode: "list",
       isDashboardLoading: false,
       isSidebarCollapsed: false,
       userParams: null,
@@ -253,14 +254,20 @@ const app = createApp({
             { title: "合約簽呈確認" },
           ],
         },
-         {
+        {
           name: "名單",
-          milestones: [
-            { title: "提供名單" },
-          ],
+          milestones: [{ title: "提供名單" }],
         },
       ],
       selectedTemplateIndex: "", // 用來綁定下拉選單
+      // [New] 看板相關資料
+      localFocusIds: [], // 儲存「今日專注」的 ID 列表 (會同步到 Firebase)
+      dragOptions: {
+        animation: 200,
+        group: "kanban", // 所有欄位必須是同一個 group 才能互拖
+        disabled: false,
+        ghostClass: "ghost-card", // 拖曳時的半透明樣式
+      },
     };
   },
   async mounted() {
@@ -332,7 +339,7 @@ const app = createApp({
         }
       );
     },
-// [權限修正] 只有「負責人」跟「當下執行者」可以修改內容
+    // [權限修正] 只有「負責人」跟「當下執行者」可以修改內容
     canEditSubProject() {
       // 1. 基本防呆
       if (!this.currentSubProject) return false;
@@ -351,8 +358,10 @@ const app = createApp({
       }
 
       // 4. [核心修改] 比對使用者名稱
-      const isAssignee = this.currentSubProject.assignee === this.currentUser.name;
-      const isHandler = this.currentSubProject.currentHandler === this.currentUser.name;
+      const isAssignee =
+        this.currentSubProject.assignee === this.currentUser.name;
+      const isHandler =
+        this.currentSubProject.currentHandler === this.currentUser.name;
 
       // 只有這兩個人 (或 Admin) 回傳 true
       return isAssignee || isHandler;
@@ -813,6 +822,107 @@ const app = createApp({
         }))
         .sort((a, b) => b.hours - a.hours);
     },
+
+    // [修正] 看板排序邏輯：完全比照列表模式 (健康度 > 最近里程碑 > 結束日)
+    kanbanColumns() {
+      const myTasks = [];
+      const focusIds = this.localFocusIds || [];
+
+      // 1. 抓取資料
+      this.rawParents.forEach((p) => {
+        const subs = this.indexedSubsByParent[p.id] || [];
+        subs.forEach((s) => {
+          if (
+            s.currentHandler === this.currentUser.name ||
+            (s.assignee === this.currentUser.name &&
+              s.currentHandler === "Unassigned")
+          ) {
+            if (
+              s.status !== "completed" &&
+              s.status !== "archived" &&
+              s.status !== "aborted"
+            ) {
+              myTasks.push({
+                ...s,
+                parentName: p.title,
+                brandName: this.indexedBrandMap[p.brandId],
+                parentObj: p,
+              });
+            }
+          }
+        });
+      });
+
+      // 2. 定義權重計算函式 (這是讓順序跟列表一樣的關鍵)
+      const getSortScore = (item) => {
+        const now = new Date();
+        const todayStr = now.toISOString().split("T")[0];
+
+        // A. 找出「比較基準日」 (如果有未完成的里程碑，用里程碑日期；否則用結束日)
+        let targetDateStr = item.endDate || "9999-12-31";
+        if (item.milestones && item.milestones.length > 0) {
+          // 找第一個還沒完成，且有日期的里程碑
+          const nextMs = item.milestones
+            .filter((m) => !m.isCompleted && m.date)
+            .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
+          if (nextMs) {
+            targetDateStr = nextMs.date;
+          }
+        }
+
+        // B. 計算權重 (越小越前面)
+        const targetDate = new Date(targetDateStr);
+        let score = targetDate.getTime(); // 基礎分數是時間戳記
+
+        // C. 加上健康度加權 (延遲的要插隊到最前面)
+        // 這裡借用簡易判斷：如果基準日 < 今天，就是延遲 (Delay)
+        if (targetDateStr < todayStr) {
+          score -= 1000000000000; // 扣超大分數，保證排第一
+        }
+        // 如果基準日 < 今天+2天，就是落後 (Lag)
+        else if (
+          new Date(now.getTime() + 2 * 86400000).toISOString().split("T")[0] >
+          targetDateStr
+        ) {
+          score -= 100000000000; // 扣大分數，排第二
+        }
+
+        return score;
+      };
+
+      // 3. 執行排序
+      const sortFn = (a, b) => getSortScore(a) - getSortScore(b);
+
+      return {
+        // 待規劃 (依 ID 或建立時間)
+        inbox: myTasks.filter((t) => t.status === "setup"),
+
+        // 今日專注 (套用排序)
+        today: myTasks
+          .filter(
+            (t) =>
+              t.status === "in_progress" &&
+              !t.isWaitingForManager &&
+              focusIds.includes(t.id)
+          )
+          .sort(sortFn),
+
+        // 待辦清單 (套用排序)
+        backlog: myTasks
+          .filter(
+            (t) =>
+              t.status === "in_progress" &&
+              !t.isWaitingForManager &&
+              !focusIds.includes(t.id)
+          )
+          .sort(sortFn),
+
+        // 等待審核 (套用排序)
+        review: myTasks
+          .filter((t) => t.status === "in_progress" && t.isWaitingForManager)
+          .sort(sortFn),
+      };
+    },
   },
   watch: {
     // [效能優化] 觸發載入歷史資料 (檢視專案詳情、歷史報表、歸檔區展開)
@@ -893,13 +1003,20 @@ const app = createApp({
         // 1. 請求通知權限 (保留)
         this.requestNotificationPermission();
 
-        // 2. [保留即時監聽] Users (使用者資料量小且變動少，適合即時)
+        // 2. [修改] Users 監聽 (同步讀取今日專注清單)
         onSnapshot(collection(db, "users"), (s) => {
           this.users = s.docs
             .map((d) => ({ id: d.id, ...d.data() }))
             .sort((a, b) => (a.team || "").localeCompare(b.team || ""));
 
-          // 若這是第一次載入，先標記 dataReady (避免畫面全白)
+          // [New] 如果抓到了當前使用者的資料，同步更新 localFocusIds
+          if (this.currentUserId) {
+            const myself = this.users.find((u) => u.id === this.currentUserId);
+            if (myself && myself.focusIds) {
+              this.localFocusIds = myself.focusIds;
+            }
+          }
+
           if (!this.dataReady) this.dataReady = true;
         });
 
@@ -2015,6 +2132,110 @@ const app = createApp({
       // this.currentParentProject = proj;
       // this.currentView = "parent_detail";
     },
+
+    // [New] 同步專注清單到 Firebase (重要：讓今日專注能被儲存)
+    async syncFocusIdsToFirebase() {
+      if (!this.currentUserId) return;
+      try {
+        await updateDoc(doc(db, "users", this.currentUserId), {
+          focusIds: this.localFocusIds,
+        });
+      } catch (e) {
+        console.error("同步失敗", e);
+      }
+    },
+
+    // [New] 看板拖曳事件處理 (核心邏輯)
+    async onKanbanChange(evt, targetColumn) {
+      // VueDraggable 的 change 事件包含 added, removed, moved
+      // 我們只關心 "added" (代表有東西被拖進這個欄位)
+      if (evt.added) {
+        const item = evt.added.element;
+
+        // 取得來源欄位 (簡單判斷)
+        let fromColumn = "backlog";
+        if (item.status === "setup") fromColumn = "inbox";
+        else if (item.isWaitingForManager) fromColumn = "review";
+        else if (this.localFocusIds.includes(item.id)) fromColumn = "today";
+
+        console.log(`從 ${fromColumn} 拖到 ${targetColumn}`, item.title);
+
+        // ==========================================
+        //  情境 1: 拖進 [🔥 今日專注]
+        // ==========================================
+        if (targetColumn === "today") {
+          // 1. 加入 ID 到清單
+          if (!this.localFocusIds.includes(item.id)) {
+            this.localFocusIds.push(item.id);
+            this.syncFocusIdsToFirebase(); // 存到雲端
+          }
+
+          // 2. 如果是從 [待規劃] 來的，要自動開案
+          if (item.status === "setup") {
+            this.currentSubProject = item;
+            this.currentParentProject = item.parentObj;
+
+            // 自動轉為執行中
+            item.status = "in_progress";
+            await updateDoc(doc(db, "sub_projects", item.id), {
+              status: "in_progress",
+            });
+
+            // 如果您想要強制跳出模板視窗，可以在這裡呼叫 openSetupModal 之類的
+            // alert(`已將「${item.title}」加入今日專注並設為執行中`);
+          }
+
+          // 3. 如果是從 [等待審核] 拉回來，解除等待狀態
+          if (item.isWaitingForManager) {
+            this.currentSubProject = item;
+            await this.finishManagerCheck();
+          }
+        }
+
+        // ==========================================
+        //  情境 2: 拖進 [🔵 待辦清單] (移出今日專注)
+        // ==========================================
+        else if (targetColumn === "backlog") {
+          // 1. 從專注清單移除
+          const idx = this.localFocusIds.indexOf(item.id);
+          if (idx > -1) {
+            this.localFocusIds.splice(idx, 1);
+            this.syncFocusIdsToFirebase();
+          }
+
+          // 2. Setup -> Backlog (開工但不急)
+          if (item.status === "setup") {
+            item.status = "in_progress";
+            await updateDoc(doc(db, "sub_projects", item.id), {
+              status: "in_progress",
+            });
+          }
+
+          // 3. Review -> Backlog (審核完回來)
+          if (item.isWaitingForManager) {
+            this.currentSubProject = item;
+            await this.finishManagerCheck();
+          }
+        }
+
+        // ==========================================
+        //  情境 3: 拖進 [⏳ 等待審核]
+        // ==========================================
+        else if (targetColumn === "review") {
+          // 1. 從專注清單移除 (因為卡住了，不用專注了)
+          const idx = this.localFocusIds.indexOf(item.id);
+          if (idx > -1) {
+            this.localFocusIds.splice(idx, 1);
+            this.syncFocusIdsToFirebase();
+          }
+
+          // 2. 觸發審核流程
+          this.currentSubProject = item;
+          await this.startManagerCheck();
+        }
+      }
+    },
+
     selectSubProject(sp, parent) {
       // [修改] 改用路由跳轉
       this.$router.push({
@@ -2028,6 +2249,50 @@ const app = createApp({
       // this.currentSubProject = sp;
       // this.currentView = "sub_project_detail";
     },
+    // [修正] 請補上這兩個函式到 methods 裡，不然 HTML 會報錯
+
+    // 1. 取得卡片要顯示的目標日期 (最近里程碑 > 結束日)
+    getTaskTargetDate(item) {
+      // 如果有里程碑，嘗試找最近的未完成里程碑
+      if (item.milestones && item.milestones.length > 0) {
+        // 找出「未完成」且「有日期」的里程碑，並依照日期排序 (最早的在前)
+        const nextMs = item.milestones
+          .filter((m) => !m.isCompleted && m.date)
+          .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
+
+        if (nextMs) return nextMs.date;
+      }
+      // 2. 如果沒有里程碑 (或都做完了)，就顯示原本的結案日
+      return item.endDate;
+    },
+
+    // 2. 取得該日期的名稱 (例如：腳本確認)
+    getTaskTargetLabel(item) {
+      if (item.milestones && item.milestones.length > 0) {
+        const nextMs = item.milestones
+          .filter((m) => !m.isCompleted && m.date)
+          .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
+
+        if (nextMs) return nextMs.title;
+      }
+      return "專案結束";
+    },
+    // [New] 取得看板日期的顏色樣式 (完全比照列表模式)
+    getKanbanDateClass(element) {
+      const health = this.getProjectHealth(element);
+      
+      // 1. 嚴重延遲 (紅)
+      if (health.type === 'delay') {
+          return 'text-red-600'; 
+      }
+      // 2. 進度落後/三天內到期 (橘)
+      if (health.type === 'lag') {
+          return 'text-orange-500'; 
+      }
+      // 3. 正常 (灰)
+      return 'text-slate-500'; 
+    },
+
     openCalendarSideEvent(ev) {
       this.calendarSideEvent = ev;
     },
@@ -2989,7 +3254,132 @@ const app = createApp({
       this.selectedTemplateIndex = "";
     },
   },
+  // [New] 同步專注清單到 Firebase
+  async syncFocusIdsToFirebase() {
+    if (!this.currentUserId) return;
+    try {
+      await updateDoc(doc(db, "users", this.currentUserId), {
+        focusIds: this.localFocusIds,
+      });
+      // console.log("專注清單已同步雲端");
+    } catch (e) {
+      console.error("同步失敗", e);
+    }
+  },
+
+  // [New] 看板拖曳事件處理 (核心)
+  async onKanbanChange(evt, targetColumn) {
+    // VueDraggable 的 change 事件包含 added, removed, moved
+    if (evt.added) {
+      const item = evt.added.element;
+      const fromColumn = this.getDragSourceColumn(item); // 需要寫一個小 helper 找來源，或者直接從 item 狀態判斷
+
+      console.log(`從 ${fromColumn} 拖到 ${targetColumn}`, item.title);
+
+      // --- 1. 拖到 [今日專注] ---
+      if (targetColumn === "today") {
+        // 加入 ID 到清單
+        if (!this.localFocusIds.includes(item.id)) {
+          this.localFocusIds.push(item.id);
+          this.syncFocusIdsToFirebase();
+        }
+        // 如果是從 [待規劃] 來的，要觸發模板
+        if (item.status === "setup") {
+          this.currentSubProject = item;
+          this.currentParentProject = item.parentObj; // 確保有母專案參照
+          // 這裡簡單處理：直接設為執行中 (您可以在這裡加入 openSetupModal 邏輯)
+          item.status = "in_progress";
+          await updateDoc(doc(db, "sub_projects", item.id), {
+            status: "in_progress",
+          });
+          alert(`「${item.title}」已加入今日專注並開始執行！`);
+        }
+        // 如果是從 [等待審核] 拉回來，觸發解除等待
+        if (item.isWaitingForManager) {
+          this.currentSubProject = item;
+          await this.finishManagerCheck();
+        }
+      }
+
+      // --- 2. 拖到 [待辦清單] ---
+      else if (targetColumn === "backlog") {
+        // 從專注清單移除
+        const idx = this.localFocusIds.indexOf(item.id);
+        if (idx > -1) {
+          this.localFocusIds.splice(idx, 1);
+          this.syncFocusIdsToFirebase();
+        }
+        // Setup -> Backlog (開工但不急)
+        if (item.status === "setup") {
+          item.status = "in_progress";
+          await updateDoc(doc(db, "sub_projects", item.id), {
+            status: "in_progress",
+          });
+        }
+        // Review -> Backlog (審核完回來)
+        if (item.isWaitingForManager) {
+          this.currentSubProject = item;
+          await this.finishManagerCheck();
+        }
+      }
+
+      // --- 3. 拖到 [等待審核] ---
+      else if (targetColumn === "review") {
+        // 從專注清單移除 (因為卡住了，不用專注了)
+        const idx = this.localFocusIds.indexOf(item.id);
+        if (idx > -1) {
+          this.localFocusIds.splice(idx, 1);
+          this.syncFocusIdsToFirebase();
+        }
+
+        this.currentSubProject = item;
+        await this.startManagerCheck();
+      }
+
+      // --- 4. 拖到 [已完成] ---
+      else if (targetColumn === "done") {
+        // 從專注清單移除
+        const idx = this.localFocusIds.indexOf(item.id);
+        if (idx > -1) {
+          this.localFocusIds.splice(idx, 1);
+          this.syncFocusIdsToFirebase();
+        }
+
+        this.currentSubProject = item;
+        // 觸發結案 (這會噴彩帶)
+        // 這裡我們模擬填寫工作日誌為當天，並直接結案
+        if (confirm(`確定要將「${item.title}」結案嗎？`)) {
+          // 簡單結案邏輯，您也可以跳出 modal
+          item.status = "completed";
+          item.finalDelayDays = 0;
+          item.completedDate = new Date().toISOString().split("T")[0];
+          await updateDoc(doc(db, "sub_projects", item.id), {
+            status: "completed",
+            completedDate: item.completedDate,
+            finalDelayDays: 0,
+          });
+          this.triggerConfetti();
+
+          // 把他加到歷史陣列以免消失
+          this.historySubs.push(item);
+          this.buildIndexes();
+        } else {
+          // 如果取消，要重新整理畫面把卡片彈回去 (略)
+          this.fetchDashboardData();
+        }
+      }
+    }
+  },
+
+  // 輔助函式：判斷來源 (因為 VueDraggable 沒直接給 fromColumn)
+  getDragSourceColumn(item) {
+    if (item.status === "setup") return "inbox";
+    if (item.isWaitingForManager) return "review";
+    if (this.localFocusIds.includes(item.id)) return "today";
+    return "backlog";
+  },
 });
 
 app.use(router); // 掛載路由
+app.component("vuedraggable", window.vuedraggable);
 app.mount("#app");
