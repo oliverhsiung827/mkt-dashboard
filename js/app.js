@@ -1726,7 +1726,8 @@ const app = createApp({
               this.currentSubProject.status = "archived"; // 您的邏輯是設為 archived (或 completed)
               this.currentSubProject.finalDelayDays = 0;
               this.currentSubProject.completedDate = this.eventForm.date;
-              alert("恭喜！專案準時完成，自動結案。");
+              // alert("恭喜！專案準時完成，自動結案。");
+              this.triggerConfetti();
             }
           }
         }
@@ -1778,6 +1779,94 @@ const app = createApp({
         alert("存檔失敗，請檢查網路");
       }
     },
+
+    // [UX 彩蛋] 隨機結案慶祝特效
+    triggerConfetti() {
+      // 1. 播放音效
+      const audio = document.getElementById("notification-sound");
+      if (audio) {
+        audio.currentTime = 0;
+        audio.play().catch((e) => console.log("Audio play blocked", e));
+      }
+
+      // 2. 隨機決定特效模式 (0, 1, 2)
+      const mode = Math.floor(Math.random() * 3);
+
+      if (mode === 0) {
+        // Mode 0: 兩側加農砲 (經典品牌色)
+        const end = Date.now() + 2000;
+        const colors = ["#4f46e5", "#fabe00", "#ef4444"];
+        (function frame() {
+          confetti({
+            particleCount: 2,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 },
+            colors: colors,
+          });
+          confetti({
+            particleCount: 2,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 },
+            colors: colors,
+          });
+          if (Date.now() < end) requestAnimationFrame(frame);
+        })();
+        console.log("🎉 Effect: Side Cannons");
+      } else if (mode === 1) {
+        // Mode 1: 盛大煙火秀 (隨機炸裂)
+        const duration = 3000;
+        const animationEnd = Date.now() + duration;
+        const defaults = {
+          startVelocity: 30,
+          spread: 360,
+          ticks: 60,
+          zIndex: 9999,
+        };
+        const randomInRange = (min, max) => Math.random() * (max - min) + min;
+
+        const interval = setInterval(function () {
+          const timeLeft = animationEnd - Date.now();
+          if (timeLeft <= 0) return clearInterval(interval);
+          const particleCount = 50 * (timeLeft / duration);
+          confetti(
+            Object.assign({}, defaults, {
+              particleCount,
+              origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+            })
+          );
+          confetti(
+            Object.assign({}, defaults, {
+              particleCount,
+              origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+            })
+          );
+        }, 250);
+        console.log("🎉 Effect: Fireworks");
+      } else {
+        // Mode 2: 紙醉金迷 (金色豪華版)
+        const count = 200;
+        const defaults = { origin: { y: 0.7 } };
+        const goldColors = ["#FFD700", "#F0E68C", "#DAA520"]; // 金色系
+
+        const fire = (particleRatio, opts) => {
+          confetti(
+            Object.assign({}, defaults, opts, {
+              particleCount: Math.floor(count * particleRatio),
+              colors: goldColors,
+            })
+          );
+        };
+        fire(0.25, { spread: 26, startVelocity: 55 });
+        fire(0.2, { spread: 60 });
+        fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+        fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+        fire(0.1, { spread: 120, startVelocity: 45 });
+        console.log("🎉 Effect: Luxury Gold");
+      }
+    },
+
     async sendNotification(recipient, type, message, pid, sid) {
       await addDoc(collection(db, "notifications"), {
         recipient,
@@ -1915,8 +2004,14 @@ const app = createApp({
           // 確保物件已經是最新的狀態
           this.historySubs.push({ ...this.currentSubProject });
           this.buildIndexes();
+
+          // [新增] 如果是結案 (completed/archived) 且不是中止 (aborted)，就放彩帶
+          if (this.currentSubProject.status !== "aborted") {
+            this.triggerConfetti();
+          }
         }
-        alert("資料已儲存");
+
+        // alert("資料已儲存"); <--- 建議把這個拿掉，因為彩帶本身就是最好的回饋
         this.showDelayReasonModal = false;
         this.delayForm = { reason: "人力不足", remark: "" };
       } catch (e) {
