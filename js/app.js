@@ -55,30 +55,60 @@ const DataFactory = {
   }),
 };
 
-// 1. 定義路由組件 (為了不改寫 HTML，我們用一個空的「佔位組件」即可)
+// [Budget Factory]
+const BudgetFactory = {
+  createCategory: (input, brandId, year) => ({
+    brandId: brandId,
+    year: year,
+    name: input.name,
+    budget: Number(input.budget) || 0,
+    createdAt: new Date().toISOString(),
+  }),
+  createProposal: (input, categoryId, user) => ({
+    categoryId: categoryId,
+    title: input.title,
+    amount: Number(input.amount) || 0,
+    originalAmount: Number(input.amount) || 0, // [New] 紀錄原始規劃
+    owner: user?.name || "Unknown",
+    isClosed: false, // [New] 結案狀態
+    overspendReason: "", // [New] 超支原因
+    date: new Date().toISOString().split("T")[0],
+    createdAt: new Date().toISOString(),
+  }),
+  createSubItem: (input, proposalId, user) => ({
+    proposalId: proposalId,
+    name: input.name,
+    amount: Number(input.amount) || 0,
+    owner: user?.name || "Unknown",
+    overspendReason: "", // [New] 超支原因
+    createdAt: new Date().toISOString(),
+  }),
+  createExpense: (input, subItemId, user) => ({
+    subItemId: subItemId,
+    event: input.event || "", // [New] 事件名稱
+    vendor: input.vendor,
+    invoiceNo: input.invoiceNo,
+    invoiceDate: input.invoiceDate,
+    amount: Number(input.amount) || 0,
+    isRequested: input.isRequested || false,
+    paymentDate: input.paymentDate || "",
+    owner: user?.name || "Unknown",
+    createdAt: new Date().toISOString(),
+  }),
+};
+
 const DummyComponent = { template: "<div></div>" };
 
-// 2. 定義網址規則
 const routes = [
-  // 首頁 -> 對應 dashboard
   { path: "/", name: "dashboard", component: DummyComponent },
-
-  // 歷史報表
   { path: "/report", name: "report", component: DummyComponent },
-
-  // 工作區
   { path: "/workspace", name: "workspace", component: DummyComponent },
-
-  // 母專案詳情 (:pid 是動態參數，例如 P12345)
   { path: "/project/:pid", name: "parent", component: DummyComponent },
-
-  // 子專案詳情
   { path: "/project/:pid/sub/:sid", name: "sub", component: DummyComponent },
+  { path: "/budget", name: "budget", component: DummyComponent },
 ];
 
-// 3. 建立 Router 實體
 const router = VueRouter.createRouter({
-  // 使用 Hash 模式 (網址會像 index.html#/project/123)，這樣不用設定 Server
   history: VueRouter.createWebHistory("/mkt-dashboard/"),
   routes,
 });
@@ -86,6 +116,7 @@ const router = VueRouter.createRouter({
 const app = createApp({
   data() {
     return {
+      // --- PM System Data ---
       taskViewMode: "list",
       isDashboardLoading: false,
       isSidebarCollapsed: false,
@@ -102,7 +133,7 @@ const app = createApp({
       currentView: "dashboard",
       selectedDashboardBrand: "all",
       sidebarSearch: "",
-      subProjectSearch: "", // [New] 子專案搜尋關鍵字
+      subProjectSearch: "",
       brandExpandedState: {},
       historyStack: [],
       currentYear: new Date().getFullYear(),
@@ -111,15 +142,12 @@ const app = createApp({
       users: [],
       currentUserId: null,
       brands: [],
-
-      // [效能優化] 資料拆分
       activeParents: [],
       activeSubs: [],
       historyParents: [],
       historySubs: [],
       isHistoryLoaded: false,
       isLoading: false,
-
       indexedSubsByParent: {},
       indexedBrandMap: {},
       indexedParentMap: {},
@@ -171,7 +199,7 @@ const app = createApp({
         in_progress: "執行中",
         completed: "已結案",
         aborted: "已中止",
-        archived: "已歸檔", // UI Map
+        archived: "已歸檔",
       },
       dataReady: false,
       isSubmitting: false,
@@ -183,11 +211,8 @@ const app = createApp({
       workspaceTab: "tasks",
       showMobileSidebar: false,
       hasCheckedDailyTasks: false,
-
-      // 快速檢視視窗
       showQuickViewModal: false,
       quickViewData: null,
-
       commonLinks: [
         {
           title: "棉花糖人資系統",
@@ -217,12 +242,10 @@ const app = createApp({
       ],
       isCommonLinksExpanded: false,
       archiveSearch: "",
-      // [New] 側邊欄調整相關
-      sidebarWidth: 256, // 預設寬度 (px)
+      sidebarWidth: 256,
       isResizingSidebar: false,
       predefinedTags: ["急件", "設計", "數位廣告", "官網"],
-      newTagInput: "", // 用來暫存輸入框的內容
-      // [New] 專案模板定義 (SOP 資料庫)
+      newTagInput: "",
       projectTemplates: [
         {
           name: "數位廣告規劃",
@@ -254,15 +277,10 @@ const app = createApp({
             { title: "合約簽呈確認" },
           ],
         },
-        {
-          name: "名單",
-          milestones: [{ title: "提供名單" }],
-        },
+        { name: "名單", milestones: [{ title: "提供名單" }] },
       ],
-      selectedTemplateIndex: "", // 用來綁定下拉選單
-      // [New] 看板相關資料
-      localFocusIds: [], // 儲存「今日專注」的 ID 列表 (會同步到 Firebase)
-
+      selectedTemplateIndex: "",
+      localFocusIds: [],
       cheerQuotes: [
         "太強了！今天的進度完全掌控中！",
         "工作效率高到嚇人，去喝杯拿鐵吧！",
@@ -273,34 +291,73 @@ const app = createApp({
       currentCheer: "今日任務已完成！",
       dragOptions: {
         animation: 200,
-        group: "kanban", // 預設群組名稱
+        group: "kanban",
         disabled: false,
-        ghostClass: "sortable-ghost", // 殘影樣式 (還是會有)
-
-        // 👇👇👇 關鍵修改：改為 false (使用原生拖曳，解決所有卡頓問題) 👇👇👇
+        ghostClass: "sortable-ghost",
         forceFallback: false,
-
         delay: 0,
         touchStartThreshold: 3,
       },
-      // [New] 彩蛋變數
-      pokeCount: 0, // 計算戳了幾下
-      headerTitle: "我的待辦任務", // 標題文字 (改成變數控制)
-      isHeaderSpinning: false, // 控制旋轉動畫
+      pokeCount: 0,
+      headerTitle: "我的待辦任務",
+      isHeaderSpinning: false,
+
+      // --- Budget System Data ---
+      budgetViewMode: "structure",
+      selectedBudgetYear: new Date().getFullYear().toString(),
+      selectedBudgetBrandId: "",
+      selectedBudgetMonth: new Date().toISOString().slice(0, 7),
+      monthlyBrandFilter: "all",
+      categoryColors: [
+        "bg-indigo-500 text-indigo-500",
+        "bg-rose-500 text-rose-500",
+        "bg-amber-400 text-amber-400",
+        "bg-emerald-500 text-emerald-500",
+        "bg-cyan-500 text-cyan-500",
+        "bg-purple-500 text-purple-500",
+      ],
+
+      budgetCategories: [],
+      budgetProposals: [],
+      budgetSubItems: [],
+      budgetExpenses: [],
+      isBudgetLoaded: false,
+
+      expandedProposals: [],
+      showCategoryModal: false,
+      categoryForm: { name: "", budget: 0 },
+      currentCategoryEditId: null,
+
+      showProposalModal: false,
+      proposalForm: { title: "", amount: 0 },
+      currentCategoryForAdd: null,
+
+      showSubItemModal: false,
+      subItemForm: { name: "", amount: 0 },
+      isEditingSubItem: false,
+      currentProposalForAdd: null,
+      currentSubItemEditId: null,
+
+      showExpenseModal: false,
+      expenseForm: {
+        event: "",
+        vendor: "",
+        invoiceNo: "",
+        invoiceDate: "",
+        amount: 0,
+        isRequested: false,
+        paymentDate: "",
+        owner: "",
+      },
+      isEditingExpense: false,
+      currentSubItemForExpense: null,
+      currentExpenseEditId: null,
     };
   },
-  // [修正] 整合了路由、登入驗證、以及 Konami Code 監聽
   async mounted() {
-    // ------------------------------------------------------------
-    // 1. 原有的 Router 網址監聽 (保持不動)
-    // ------------------------------------------------------------
     router.afterEach((to) => {
       this.handleRouteUpdate(to);
     });
-
-    // ------------------------------------------------------------
-    // 2. 原有的 Auth 登入狀態監聽 (保持不動)
-    // ------------------------------------------------------------
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         this.userParams = user;
@@ -327,10 +384,6 @@ const app = createApp({
         this.dataReady = false;
       }
     });
-
-    // ------------------------------------------------------------
-    // 3. [New] 彩蛋監聽器：Konami Code (上上下下左右左右 B A)
-    // ------------------------------------------------------------
     const konamiCode = [
       "ArrowUp",
       "ArrowUp",
@@ -344,36 +397,23 @@ const app = createApp({
       "a",
     ];
     let cursor = 0;
-
     window.addEventListener("keydown", (e) => {
-      // 取得按鍵 (轉小寫以防大小寫問題)
       const key = e.key.toLowerCase();
-      // 取得目標按鍵 (也轉小寫)
       const targetKey = konamiCode[cursor].toLowerCase();
-
-      // 比對按鍵
       if (key === targetKey) {
-        cursor++; // 對了就下一關
-
-        // 如果全部輸入正確
+        cursor++;
         if (cursor === konamiCode.length) {
-          console.log("Konami Code Activated! 🚀");
-
-          // 呼叫放煙火的方法 (請確認 methods 裡有寫 triggerSuperParty)
-          if (this.triggerSuperParty) {
-            this.triggerSuperParty();
-          }
-          cursor = 0; // 重置，準備下一次
+          if (this.triggerSuperParty) this.triggerSuperParty();
+          cursor = 0;
         }
       } else {
-        cursor = 0; // 按錯任何一個鍵就重來
+        cursor = 0;
       }
     });
   },
   computed: {
-    // [New] 自動計算年份清單
     availableYears() {
-      const startYear = 2025;
+      const startYear = 2026;
       const currentYear = new Date().getFullYear();
       const endYear = currentYear + 1;
       const years = [];
@@ -382,9 +422,7 @@ const app = createApp({
       }
       return years;
     },
-    // [效能優化] 合併活躍與歷史資料
     rawParents() {
-      // 確保沒有重複 ID (如果補抓時重複)
       const map = new Map();
       [...this.activeParents, ...this.historyParents].forEach((p) =>
         map.set(p.id, p)
@@ -398,7 +436,6 @@ const app = createApp({
       );
       return Array.from(map.values());
     },
-
     currentUser() {
       return (
         (this.users || []).find((u) => u.id === this.currentUserId) || {
@@ -408,33 +445,21 @@ const app = createApp({
         }
       );
     },
-    // [權限修正] 只有「負責人」跟「當下執行者」可以修改內容
     canEditSubProject() {
-      // 1. 基本防呆
       if (!this.currentSubProject) return false;
-
-      // 2. Admin 擁有最高權限 (保留此行以便您進行系統維護/救援)
       if (this.currentUser.role === "admin") return true;
-
-      // 3. 狀態檢查：如果專案已經結束 (歸檔/中止/完成)，原則上鎖定不給改
-      // (除非您希望結案後還能改，就把這段拿掉)
       if (
-        this.currentSubProject.status === "archived" ||
-        this.currentSubProject.status === "aborted" ||
-        this.currentSubProject.status === "completed"
-      ) {
+        ["archived", "aborted", "completed"].includes(
+          this.currentSubProject.status
+        )
+      )
         return false;
-      }
-
-      // 4. [核心修改] 比對使用者名稱
-      const isAssignee =
-        this.currentSubProject.assignee === this.currentUser.name;
-      const isHandler =
-        this.currentSubProject.currentHandler === this.currentUser.name;
-
-      // 只有這兩個人 (或 Admin) 回傳 true
-      return isAssignee || isHandler;
+      return (
+        this.currentSubProject.assignee === this.currentUser.name ||
+        this.currentSubProject.currentHandler === this.currentUser.name
+      );
     },
+
     sortedBrands() {
       return [...this.brands].sort((a, b) =>
         a.name.localeCompare(b.name, "zh-TW")
@@ -451,27 +476,116 @@ const app = createApp({
         return projects.some((p) => p.title.toLowerCase().includes(search));
       });
     },
+
+    // --- [Budget System] Computed (修復與優化) ---
+    currentBudgetBrand() {
+      return this.brands.find((b) => b.id === this.selectedBudgetBrandId) || {};
+    },
+    computedCategories() {
+      if (!this.selectedBudgetBrandId) return [];
+      return this.budgetCategories
+        .filter(
+          (c) =>
+            c.brandId === this.selectedBudgetBrandId &&
+            c.year == this.selectedBudgetYear
+        )
+        .map((cat) => {
+          const props = this.budgetProposals.filter(
+            (p) => p.categoryId === cat.id
+          );
+          // 已規劃 (Allocated) - 結案後會自動更新為實際值
+          const used = props.reduce(
+            (sum, p) => sum + (Number(p.amount) || 0),
+            0
+          );
+
+          // 實際核銷 (Actual Used)
+          const propIds = props.map((p) => p.id);
+          const relatedSubItems = this.budgetSubItems.filter((s) =>
+            propIds.includes(s.proposalId)
+          );
+          const subItemIds = relatedSubItems.map((s) => s.id);
+          const actualUsed = this.budgetExpenses
+            .filter((e) => subItemIds.includes(e.subItemId))
+            .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+
+          return { ...cat, used, actualUsed };
+        });
+    },
+    brandBudgetStats() {
+      const cats = this.computedCategories;
+      const allocatedToCategories = cats.reduce(
+        (sum, c) => sum + (Number(c.budget) || 0),
+        0
+      );
+      const total = allocatedToCategories;
+      const used = cats.reduce((sum, c) => sum + (c.used || 0), 0);
+      return {
+        total,
+        allocatedToCategories,
+        used,
+        remaining: total - used,
+        progress: total ? Math.round((used / total) * 100) : 0,
+      };
+    },
+    monthlyExpensesList() {
+      return this.budgetExpenses
+        .filter((e) => {
+          if (!e.paymentDate) return false;
+          if (!e.paymentDate.startsWith(this.selectedBudgetMonth)) return false;
+          const sub = this.budgetSubItems.find((s) => s.id === e.subItemId);
+          if (!sub) return false;
+          const prop = this.budgetProposals.find(
+            (p) => p.id === sub.proposalId
+          );
+          if (!prop) return false;
+          const cat = this.budgetCategories.find(
+            (c) => c.id === prop.categoryId
+          );
+          if (
+            this.selectedBudgetBrandId &&
+            (!cat || cat.brandId !== this.selectedBudgetBrandId)
+          ) {
+            return false;
+          }
+          return true;
+        })
+        .map((e) => {
+          const sub =
+            this.budgetSubItems.find((s) => s.id === e.subItemId) || {};
+          const prop =
+            this.budgetProposals.find((p) => p.id === sub.proposalId) || {};
+          const cat =
+            this.budgetCategories.find((c) => c.id === prop.categoryId) || {};
+          return { exp: e, sub, prop, cat };
+        })
+        .sort(
+          (a, b) => new Date(a.exp.paymentDate) - new Date(b.exp.paymentDate)
+        );
+    },
+    monthlyStats() {
+      const totalPaid = this.monthlyExpensesList.reduce(
+        (sum, item) => sum + (Number(item.exp.amount) || 0),
+        0
+      );
+      return { totalPaid };
+    },
+
     sortedMilestones() {
       if (!this.currentSubProject) return [];
       return [...(this.currentSubProject.milestones || [])].sort(
         (a, b) => new Date(a.date) - new Date(b.date)
       );
     },
-    // [修正] 歸檔專案篩選器 (包含 aborted 與 archived)
     archivedProjects() {
       if (!this.rawParents) return [];
-
-      // 1. 先篩選狀態
       let list = this.rawParents.filter(
         (p) => p.status === "archived" || p.status === "aborted"
       );
-
-      // 2. [New] 再篩選關鍵字
       if (this.archiveSearch) {
         const key = this.archiveSearch.toLowerCase();
         list = list.filter((p) => p.title.toLowerCase().includes(key));
       }
-
       return list;
     },
     unreadNotificationsCount() {
@@ -487,7 +601,6 @@ const app = createApp({
     getSubsForParent() {
       return (pid) => this.indexedSubsByParent[pid] || [];
     },
-    // [New] 根據搜尋關鍵字過濾子專案
     filteredSubProjects() {
       if (!this.currentParentProject) return [];
       const allSubs = this.getSortedSubs(this.currentParentProject.id);
@@ -501,60 +614,43 @@ const app = createApp({
             this.statusMap[sp.status].includes(keyword))
       );
     },
-
-    // [核心] 待辦清單邏輯
     myHandledBranches() {
       const list = [];
       this.rawParents.forEach((p) => {
         const subs = this.indexedSubsByParent[p.id] || [];
         const brandName = this.indexedBrandMap[p.brandId] || "Unknown";
         subs.forEach((sp) => {
-          // 1. 篩選：執行中 且 球在自己手上
           if (
             sp.currentHandler === this.currentUser.name &&
             sp.status === "in_progress"
           ) {
-            // 2. [New] 預先計算「當前目標」是什麼
             let targetDate = sp.endDate || "9999-12-31";
             let targetLabel = "專案截止";
             let isMilestone = false;
-
             if (sp.milestones && sp.milestones.length > 0) {
-              // 排序節點
               const sorted = [...sp.milestones].sort(
                 (m1, m2) => new Date(m1.date) - new Date(m2.date)
               );
-              // 找第一個沒完成的
               const nextMs = sorted.find((m) => !m.isCompleted);
-
               if (nextMs) {
                 targetDate = nextMs.date;
-                targetLabel = nextMs.title; // 節點名稱
+                targetLabel = nextMs.title;
                 isMilestone = true;
               }
             }
-
-            // 將計算結果包進物件回傳
             list.push({
               brand: { name: brandName },
               parent: p,
               sub: sp,
-              // 額外資訊供畫面顯示
               displayInfo: { targetDate, targetLabel, isMilestone },
             });
           }
         });
       });
-
-      // 3. 排序：依照剛剛算好的 targetDate
       return list.sort((a, b) => {
         const dateA = new Date(a.displayInfo.targetDate);
         const dateB = new Date(b.displayInfo.targetDate);
-
-        // 日期越近越上面
         if (dateA.getTime() !== dateB.getTime()) return dateA - dateB;
-
-        // 同一天則比滯留天數
         return this.getDaysHeld(b.sub) - this.getDaysHeld(a.sub);
       });
     },
@@ -575,12 +671,9 @@ const app = createApp({
       return list;
     },
     filteredMonitorList() {
-      // 1. 基礎篩選：只抓出「執行中 (in_progress)」的案件
       const candidates = this.allSubProjects.filter(
         (i) => i.branch.status === "in_progress"
       );
-
-      // 2. 排序 (保持原本邏輯：母案日期 -> 母案標題 -> 子案日期)
       candidates.sort((a, b) => {
         const dateA = new Date(a.parent.startDate || "1970-01-01");
         const dateB = new Date(b.parent.startDate || "1970-01-01");
@@ -591,11 +684,7 @@ const app = createApp({
         const subEndB = new Date(b.branch.endDate || "9999-12-31");
         return subEndA - subEndB;
       });
-
-      // 3. 根據下拉選單進行狀態篩選
       if (this.filterStatus === "all") return candidates;
-
-      // 比對專案健康度 (type 會是 'delay', 'lag', 'normal')
       return candidates.filter(
         (i) => this.getProjectHealth(i.branch).type === this.filterStatus
       );
@@ -666,8 +755,6 @@ const app = createApp({
           reasonList: this.objToArr(overallReasons, overallCount),
         },
         archivedList,
-
-        // ★ 這裡加上 Math.round (強制進位)
         archivedHours: Math.round(totalPeriodHours * 10) / 10,
       };
     },
@@ -680,7 +767,7 @@ const app = createApp({
         totalPercent = 0,
         maxDelay = 0;
       subs.forEach((sp) => {
-        act += this.calcSubProjectHours(sp); // 呼叫已修正的計算函式
+        act += this.calcSubProjectHours(sp);
         const h = this.getProjectHealth(sp);
         if (sp.status !== "aborted" && h.type === "delay") {
           delays++;
@@ -694,7 +781,7 @@ const app = createApp({
       return {
         total: subs.length,
         completed,
-        act: Math.round(act * 10) / 10, // 再次確保加總進位
+        act: Math.round(act * 10) / 10,
         delays,
         maxDelay,
         progress: subs.length ? Math.round(totalPercent / subs.length) : 0,
@@ -717,7 +804,6 @@ const app = createApp({
       const todayStr = new Date().toLocaleDateString("en-CA", {
         timeZone: "Asia/Taipei",
       });
-
       for (let i = 0; i < totalDays; i++) {
         const current = new Date(startDay);
         current.setDate(startDay.getDate() + i);
@@ -733,7 +819,6 @@ const app = createApp({
           events: [],
         });
       }
-
       this.allSubProjects.forEach((item) => {
         const sp = item.branch;
         const isMine =
@@ -741,9 +826,7 @@ const app = createApp({
           sp.assignee === this.currentUser.name ||
           sp.currentHandler === this.currentUser.name;
         if (!isMine) return;
-
         const brandPrefix = item.brand ? `[${item.brand.name}] ` : "";
-
         if (sp.endDate) {
           const day = days.find((d) => d.isoDate === sp.endDate);
           if (day)
@@ -771,10 +854,7 @@ const app = createApp({
       });
       return days;
     },
-    // 在 computed: { ... } 裡面
-
     memberStats() {
-      // [修改] 先過濾掉 admin 角色，再進行 map 計算
       return this.users
         .filter((u) => u.role !== "admin")
         .map((m) => {
@@ -845,34 +925,24 @@ const app = createApp({
       );
       return sorted.filter((m) => !m.isCompleted).slice(0, 1);
     },
-    // 在 computed: { ... } 裡面
-
     memberHoursStats() {
       const stats = {};
-
-      // [修改] 初始化時，只為「非 admin」的使用者建立統計欄位
       this.users
         .filter((u) => u.role !== "admin")
         .forEach(
           (u) => (stats[u.name] = { name: u.name, team: u.team, hours: 0 })
         );
-
       this.allSubProjects.forEach((item) => {
         const sp = item.branch;
         if (sp.events) {
           sp.events.forEach((ev) => {
-            // 注意：因為 stats 裡面沒有 admin 的 key，所以 admin 的工時會因為 stats[ev.worker] 為 undefined 而自動被忽略
             if (this.checkDateMatch(ev.date) && stats[ev.worker])
               stats[ev.worker].hours += Number(ev.hours || 0);
           });
         }
       });
-
       return Object.values(stats)
-        .map((s) => ({
-          ...s,
-          hours: Math.round(s.hours * 10) / 10,
-        }))
+        .map((s) => ({ ...s, hours: Math.round(s.hours * 10) / 10 }))
         .sort((a, b) => b.hours - a.hours);
     },
     departmentHours() {
@@ -886,51 +956,35 @@ const app = createApp({
       return Object.entries(deptStats)
         .map(([team, hours]) => ({
           name: team,
-          hours: Math.round(hours * 10) / 10, // [修改] 這裡也進位
+          hours: Math.round(hours * 10) / 10,
           percent: totalAll ? Math.round((hours / totalAll) * 100) : 0,
         }))
         .sort((a, b) => b.hours - a.hours);
     },
-
-    // [修正] 看板資料分類 (含搜尋過濾 + 智慧排序)
     kanbanColumns() {
       const myTasks = [];
       const focusIds = this.localFocusIds || [];
-
-      // 1. 取得搜尋關鍵字 (轉小寫，去頭尾空白)
       const keyword = (this.subProjectSearch || "").toLowerCase().trim();
-
-      // 2. 抓取資料並篩選
       this.rawParents.forEach((p) => {
         const subs = this.indexedSubsByParent[p.id] || [];
         subs.forEach((s) => {
-          // A. 權限判斷：球在我手上 OR (我是負責人且未指派)
           if (
             s.currentHandler === this.currentUser.name ||
             (s.assignee === this.currentUser.name &&
               s.currentHandler === "Unassigned")
           ) {
-            // B. 狀態判斷：排除已完成、封存、終止
             if (
               s.status !== "completed" &&
               s.status !== "archived" &&
               s.status !== "aborted"
             ) {
-              // C. 搜尋過濾邏輯
               if (keyword) {
                 const matchTitle = s.title.toLowerCase().includes(keyword);
                 const matchParent = p.title.toLowerCase().includes(keyword);
-                // 取得品牌名稱進行搜尋
                 const brandName = this.indexedBrandMap[p.brandId] || "";
                 const matchBrand = brandName.toLowerCase().includes(keyword);
-
-                // 如果 標題、母專案、品牌 都不符合，就跳過
-                if (!matchTitle && !matchParent && !matchBrand) {
-                  return;
-                }
+                if (!matchTitle && !matchParent && !matchBrand) return;
               }
-
-              // 符合條件，加入列表 (補上顯示所需的 parentName 等資訊)
               myTasks.push({
                 ...s,
                 parentName: p.title,
@@ -941,49 +995,29 @@ const app = createApp({
           }
         });
       });
-
-      // 3. 定義排序權重函式 (讓看板順序跟列表模式一模一樣)
-      // 邏輯：嚴重延遲 > 快到期(落後) > 日期越早越前
       const getSortScore = (item) => {
         const now = new Date();
         const todayStr = now.toISOString().split("T")[0];
-
-        // 找出「比較基準日」 (優先用最近的未完成里程碑，沒有才用結案日)
         let targetDateStr = item.endDate || "9999-12-31";
         if (item.milestones && item.milestones.length > 0) {
           const nextMs = item.milestones
             .filter((m) => !m.isCompleted && m.date)
             .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
-          if (nextMs) {
-            targetDateStr = nextMs.date;
-          }
+          if (nextMs) targetDateStr = nextMs.date;
         }
-
         const targetDate = new Date(targetDateStr);
-        let score = targetDate.getTime(); // 基礎分數是時間戳記
-
-        // 加權扣分 (讓急件排到最上面，分數越小越前面)
-        if (targetDateStr < todayStr) {
-          score -= 1000000000000; // 延遲 (Delay): 扣超大分，保證置頂
-        } else if (
+        let score = targetDate.getTime();
+        if (targetDateStr < todayStr) score -= 1000000000000;
+        else if (
           new Date(now.getTime() + 2 * 86400000).toISOString().split("T")[0] >
           targetDateStr
-        ) {
-          score -= 100000000000; // 落後 (Lag): 扣大分，排第二順位
-        }
-
+        )
+          score -= 100000000000;
         return score;
       };
-
-      // 4. 建立排序函式
       const sortFn = (a, b) => getSortScore(a) - getSortScore(b);
-
-      // 5. 回傳分類結果
       return {
-        // 待規劃 (Inbox): 通常依照建立順序，若想依照日期排也可加上 .sort(sortFn)
         inbox: myTasks.filter((t) => t.status === "setup"),
-
-        // 今日專注 (Today): 依照急迫性排序
         today: myTasks
           .filter(
             (t) =>
@@ -992,8 +1026,6 @@ const app = createApp({
               focusIds.includes(t.id)
           )
           .sort(sortFn),
-
-        // 待辦清單 (Backlog): 依照急迫性排序
         backlog: myTasks
           .filter(
             (t) =>
@@ -1002,8 +1034,6 @@ const app = createApp({
               !focusIds.includes(t.id)
           )
           .sort(sortFn),
-
-        // 等待審核 (Review): 依照急迫性排序
         review: myTasks
           .filter((t) => t.status === "in_progress" && t.isWaitingForManager)
           .sort(sortFn),
@@ -1011,30 +1041,26 @@ const app = createApp({
     },
   },
   watch: {
-    // 1. 監聽視圖切換 (載入歷史資料)
     currentView(newView) {
       if (newView === "history_report" || newView === "parent_detail") {
         this.loadHistoryData();
+      } else if (newView === "budget") {
+        this.loadBudgetData();
+        if (this.brands.length > 0 && !this.selectedBudgetBrandId) {
+          this.selectedBudgetBrandId = this.brands[0].id;
+        }
       }
     },
     showArchived(isShown) {
-      if (isShown) {
-        console.log("展開歸檔區，正在補抓資料...");
-        this.loadHistoryData();
-      }
+      if (isShown) this.loadHistoryData();
     },
     memberDetailYear(newYear) {
-      if (newYear !== "all" && newYear < new Date().getFullYear()) {
+      if (newYear !== "all" && newYear < new Date().getFullYear())
         this.loadHistoryData();
-      }
     },
-    // 2. 監聽資料準備好沒
     dataReady(isReady) {
-      if (isReady) {
-        this.handleRouteUpdate(this.$route);
-      }
+      if (isReady) this.handleRouteUpdate(this.$route);
     },
-    // 3. 搜尋框密技監聽器
     subProjectSearch(val) {
       if (!val) return;
       const cmd = val.toLowerCase().trim();
@@ -1055,15 +1081,18 @@ const app = createApp({
         this.subProjectSearch = "";
       }
     },
-    // 4. 監聽今日專注清空
     "kanbanColumns.today"(newVal) {
-      if (newVal.length === 0) {
-        this.refreshCheer();
+      if (newVal.length === 0) this.refreshCheer();
+    },
+    brands(newVal) {
+      if (newVal.length > 0 && !this.selectedBudgetBrandId) {
+        this.selectedBudgetBrandId = newVal[0].id;
       }
     },
   },
 
   methods: {
+    // --- Utils ---
     refreshCheer() {
       const idx = Math.floor(Math.random() * this.cheerQuotes.length);
       this.currentCheer = this.cheerQuotes[idx];
@@ -1114,41 +1143,27 @@ const app = createApp({
       });
       this.hasCheckedDailyTasks = true;
     },
+    // ... (Init, Fetch)
     initListeners() {
       try {
-        // 1. 請求通知權限 (保留)
         this.requestNotificationPermission();
-
-        // 2. [修改] Users 監聽 (同步讀取今日專注清單)
         onSnapshot(collection(db, "users"), (s) => {
           this.users = s.docs
             .map((d) => ({ id: d.id, ...d.data() }))
             .sort((a, b) => (a.team || "").localeCompare(b.team || ""));
-
-          // [New] 如果抓到了當前使用者的資料，同步更新 localFocusIds
           if (this.currentUserId) {
             const myself = this.users.find((u) => u.id === this.currentUserId);
             if (myself && myself.focusIds) {
               this.localFocusIds = myself.focusIds;
             }
           }
-
           if (!this.dataReady) this.dataReady = true;
         });
-
-        // 3. [保留即時監聽] Brands (品牌資料量極小)
         onSnapshot(collection(db, "brands"), (s) => {
           this.brands = s.docs.map((d) => ({ id: d.id, ...d.data() }));
           this.rebuildBrandMap();
         });
-
-        // --- [修改重點] ---
-        // 4. [效能優化] 移除原本對 projects 和 sub_projects 的 onSnapshot
-        // 改成呼叫 fetchDashboardData() 來一次性拉取資料
         this.fetchDashboardData();
-        // ------------------
-
-        // 5. [保留即時監聽] 通知中心 (必須即時，否則失去通知意義)
         this.$watch(
           () => this.currentUser?.name,
           (newVal) => {
@@ -1163,8 +1178,6 @@ const app = createApp({
                   this.notifications = snap.docs
                     .map((d) => ({ id: d.id, ...d.data() }))
                     .sort((a, b) => new Date(b.time) - new Date(a.time));
-
-                  // 檢查是否有新通知並發送瀏覽器推播
                   if (this.dataReady && this.notifications.length > oldLen) {
                     const latest = this.notifications[0];
                     if (
@@ -1185,19 +1198,13 @@ const app = createApp({
         );
       } catch (e) {
         console.error("Init Listeners Error:", e);
-        // 萬一出錯，至少讓畫面不要卡死
         this.dataReady = true;
       }
     },
-    // [效能優化] 改為手動拉取儀表板資料 (取代 onSnapshot)
     async fetchDashboardData() {
       if (this.isDashboardLoading) return;
       this.isDashboardLoading = true;
-
-      // 如果您有做 Toast 優化，這裡可以加 this.showToast('更新中', '正在同步儀表板數據...', 'info');
-
       try {
-        // 定義資料轉換函數 (跟原本一樣)
         const safeProject = (d) => ({
           id: d.id,
           brandId: "",
@@ -1222,42 +1229,28 @@ const app = createApp({
             comments: data.comments || [],
           };
         };
-
-        // 1. 抓取「執行中 (active)」的母專案
         const qProjects = query(
           collection(db, "projects"),
           where("status", "==", "active")
         );
         const snapProj = await getDocs(qProjects);
         this.activeParents = snapProj.docs.map((d) => safeProject(d));
-
-        // 2. 抓取「規劃中 (setup) 或 執行中 (in_progress)」的子專案
         const qSubs = query(
           collection(db, "sub_projects"),
           where("status", "in", ["setup", "in_progress"])
         );
         const snapSubs = await getDocs(qSubs);
         this.activeSubs = snapSubs.docs.map((d) => safeSub(d));
-
-        // 3. 重建索引與畫面
         this.buildIndexes();
-
-        // 如果有 Toast，可以加 this.showToast('同步完成', '儀表板數據已更新', 'success');
-        console.log("儀表板數據已手動更新");
       } catch (e) {
-        console.error("更新儀表板失敗", e);
-        alert("更新失敗，請檢查網路連線");
+        console.error(e);
       } finally {
         this.isDashboardLoading = false;
       }
     },
-
-    // [New] 延遲載入歷史資料 (補抓 Completed, Aborted, Archived)
     async loadHistoryData() {
       if (this.isHistoryLoaded) return;
       this.isLoading = true;
-      console.log("正在下載歷史報表資料..."); // 改用 console.log
-
       try {
         const safeProject = (d) => ({
           id: d.id,
@@ -1283,48 +1276,30 @@ const app = createApp({
             comments: data.comments || [],
           };
         };
-
-        // [效能優化] 1. 抓母專案：
-        // 規則：狀態是歸檔類 + 依照開始日倒序 + 只抓最近 100 筆
         const qHistoryProjects = query(
           collection(db, "projects"),
           where("status", "in", ["completed", "aborted", "archived"]),
           orderBy("startDate", "desc"),
-          limit(100) // ★ 限制 100 筆，省錢關鍵
+          limit(100)
         );
         const snapProj = await getDocs(qHistoryProjects);
         this.historyParents = snapProj.docs.map((d) => safeProject(d));
-
-        // [效能優化] 2. 抓子專案：
-        // 規則：狀態是歸檔類 + 依照結束日倒序 + 只抓最近 300 筆
         const qHistorySubs = query(
           collection(db, "sub_projects"),
           where("status", "in", ["completed", "aborted"]),
           orderBy("endDate", "desc"),
-          limit(300) // ★ 限制 300 筆
+          limit(300)
         );
         const snapSubs = await getDocs(qHistorySubs);
         this.historySubs = snapSubs.docs.map((d) => safeSub(d));
-
         this.isHistoryLoaded = true;
-        this.buildIndexes(); // 重建索引讓畫面更新
-        console.log(
-          `同步完成，已載入 ${this.historyParents.length} 筆歷史專案`
-        );
+        this.buildIndexes();
       } catch (err) {
-        console.error("補抓歸檔資料失敗", err);
-
-        // 提示索引錯誤 (開發階段必看)
-        if (err.message.includes("index")) {
-          alert(
-            "系統提示：請打開 F12 Console，點擊 Firebase 連結以建立查詢索引 (Index)"
-          );
-        }
+        console.error(err);
       } finally {
         this.isLoading = false;
       }
     },
-
     buildIndexes() {
       const subMap = {};
       this.rawSubs.forEach((s) => {
@@ -1344,7 +1319,6 @@ const app = createApp({
       this.brands.forEach((b) => (bMap[b.id] = b.name));
       this.indexedBrandMap = bMap;
     },
-
     openMemberDetail(m) {
       this.currentMemberDetail = m;
       this.recalcMemberDetail();
@@ -1360,7 +1334,6 @@ const app = createApp({
         overallDelayDays = 0,
         overallReasons = {},
         ownedList = [];
-
       this.allSubProjects.forEach((item) => {
         const sp = item.branch;
         if (sp.currentHandler === m.name && sp.status === "in_progress") {
@@ -1375,26 +1348,18 @@ const app = createApp({
           });
         }
         if (sp.assignee === m.name) {
-          // [修改] 年份判斷邏輯優化
-          // 如果是「規劃中 (setup)」且還沒填結束日，就改用「開始日」來判斷年份，避免被過濾掉
           let dateForFilter = sp.endDate;
-          if (sp.status === "setup" && !dateForFilter) {
+          if (sp.status === "setup" && !dateForFilter)
             dateForFilter = sp.startDate;
-          }
-
           if (
             this.memberDetailYear === "all" ||
             (dateForFilter && dateForFilter.startsWith(this.memberDetailYear))
           ) {
             overallCount++;
-            // ... (原本的邏輯: 計算延遲等) ...
-
-            // [修改] 記得確保這裡有加入 brand (上一各步驟我們加過了，這裡保留)
             ownedList.push({ brand: item.brand, parent: item.parent, sub: sp });
           }
         }
       });
-
       this.memberDetailData = {
         active: {
           count: activeCount,
@@ -1422,7 +1387,6 @@ const app = createApp({
         },
       };
     },
-
     objToArr(obj, total) {
       return Object.entries(obj)
         .map(([k, v]) => ({
@@ -1474,10 +1438,8 @@ const app = createApp({
       signOut(auth);
     },
     async addBrand() {
-      // [New] 權限檢查
       if (this.currentUser.role !== "admin")
         return alert("權限不足：只有管理者可以新增品牌");
-
       const n = prompt("輸入新品牌名稱:");
       if (n && n.trim()) {
         await addDoc(collection(db, "brands"), { name: n.trim() });
@@ -1516,6 +1478,8 @@ const app = createApp({
         return new Date(a.endDate) - new Date(b.endDate);
       });
     },
+
+    // ... (PM Methods)
     startDrag(e) {
       this.isDraggingGantt = true;
       this.startGanttX = e.pageX - this.$refs.ganttContainer.offsetLeft;
@@ -1587,28 +1551,16 @@ const app = createApp({
       if (!this.projectForm.title) return alert("請填寫資訊");
       this.isSubmitting = true;
       try {
-        // 1. 產生資料物件
         const newProjectData = DataFactory.createProject(
           this.projectForm,
           this.currentUser
         );
-
-        // 2. 寫入資料庫，並取得新 ID
         const docRef = await addDoc(collection(db, "projects"), newProjectData);
-
-        // 3. [重要] 手動更新前端快取 (因為移除了 onSnapshot)
         const newProject = { id: docRef.id, ...newProjectData };
         this.activeParents.push(newProject);
-        // 更新索引 Map，這樣等一下路由才找得到
         this.indexedParentMap[docRef.id] = newProject;
-
         this.showProjectModal = false;
-
-        // 4. 跳轉到新專案頁面
         this.$router.push({ name: "parent", params: { pid: docRef.id } });
-
-        // 顯示成功訊息 (可選)
-        // this.showToast('開案成功', '已建立母專案並跳轉', 'success');
       } catch (e) {
         console.error(e);
         alert("開案失敗：" + e.message);
@@ -1624,8 +1576,6 @@ const app = createApp({
       };
       this.showSubProjectModal = true;
     },
-
-    // [New] 新增標籤 (用於開案或編輯時)
     addTag(targetForm) {
       const val = this.newTagInput.trim();
       if (!val) return;
@@ -1635,11 +1585,9 @@ const app = createApp({
       }
       this.newTagInput = "";
     },
-    // [New] 移除標籤
     removeTag(targetForm, index) {
       targetForm.tags.splice(index, 1);
     },
-    // [New] 取得標籤樣式 (根據文字內容給不同顏色，增加識別度)
     getTagStyle(tagName) {
       if (tagName === "急件")
         return "bg-red-100 text-red-600 border border-red-200";
@@ -1649,31 +1597,23 @@ const app = createApp({
         return "bg-blue-100 text-blue-600 border border-blue-200";
       if (tagName === "官網")
         return "bg-pink-100 text-pink-600 border border-pink-200";
-      return "bg-slate-100 text-slate-600 border border-slate-200"; // 預設灰色
+      return "bg-slate-100 text-slate-600 border border-slate-200";
     },
-
     async saveSubProject() {
       if (!this.subProjectForm.title) return alert("請填寫名稱");
       this.isSubmitting = true;
       try {
-        // 1. 產生資料物件
         const newSubData = DataFactory.createSubProject(
           this.subProjectForm,
           this.currentUser
         );
-
-        // [防呆] 子專案起點不早於母專案
         const parentObj = this.indexedParentMap[this.subProjectForm.parentId];
         if (parentObj && parentObj.startDate) {
           if (newSubData.startDate < parentObj.startDate) {
             newSubData.startDate = parentObj.startDate;
           }
         }
-
-        // 2. 寫入資料庫，取得 ID
         const docRef = await addDoc(collection(db, "sub_projects"), newSubData);
-
-        // 3. 發送通知 (如果有指派別人)
         if (newSubData.assignee !== this.currentUser.name) {
           this.sendNotification(
             newSubData.assignee,
@@ -1683,20 +1623,13 @@ const app = createApp({
             docRef.id
           );
         }
-
-        // 4. [重要] 手動更新前端快取
         const newSub = { id: docRef.id, ...newSubData };
         this.activeSubs.push(newSub);
-
-        // 手動更新索引 (把新子案塞進對應的母案陣列)
         if (!this.indexedSubsByParent[this.subProjectForm.parentId]) {
           this.indexedSubsByParent[this.subProjectForm.parentId] = [];
         }
         this.indexedSubsByParent[this.subProjectForm.parentId].push(newSub);
-
         this.showSubProjectModal = false;
-
-        // 5. 跳轉到新子專案頁面
         this.$router.push({
           name: "sub",
           params: { pid: this.subProjectForm.parentId, sid: docRef.id },
@@ -1708,16 +1641,13 @@ const app = createApp({
         this.isSubmitting = false;
       }
     },
-
     openEditBranchModal() {
       this.editBranchForm = JSON.parse(JSON.stringify(this.currentSubProject));
       this.showEditBranchModal = true;
     },
-
     async saveEditedBranch() {
       this.isSubmitting = true;
       try {
-        // 1. [防呆] 日期檢查
         if (
           this.editBranchForm.startDate < this.currentParentProject.startDate
         ) {
@@ -1725,21 +1655,14 @@ const app = createApp({
             `錯誤：子專案開始日 (${this.editBranchForm.startDate}) 不可早於母專案開始日 (${this.currentParentProject.startDate})`
           );
         }
-
-        // 2. 準備要更新的資料物件 (確保 tags 存在)
         const updateData = {
           ...this.editBranchForm,
-          tags: this.editBranchForm.tags || [], // ★ 確保寫入標籤陣列
+          tags: this.editBranchForm.tags || [],
         };
-
-        // 3. 寫入 Firestore 資料庫
         await updateDoc(
           doc(db, "sub_projects", this.currentSubProject.id),
           updateData
         );
-
-        // 4. 檢查是否更換負責人，發送通知
-        // (注意：此時 this.currentSubProject 還是舊資料，正好可以用來比對)
         if (this.editBranchForm.assignee !== this.currentSubProject.assignee) {
           await this.sendNotification(
             this.editBranchForm.assignee,
@@ -1749,14 +1672,8 @@ const app = createApp({
             this.currentSubProject.id
           );
         }
-
-        // 5. [重要] 手動更新本地快取 (因為移除了 onSnapshot)
-        // 使用 Object.assign 直接修改當前物件，讓畫面立刻變更
         Object.assign(this.currentSubProject, updateData);
-
         this.showEditBranchModal = false;
-        // 如果您有做 Toast，可以加這一行
-        // this.showToast('更新成功', '子專案設定已儲存', 'success');
       } catch (e) {
         console.error("更新失敗", e);
         alert("儲存變更失敗，請檢查網路");
@@ -1764,7 +1681,6 @@ const app = createApp({
         this.isSubmitting = false;
       }
     },
-
     async editParentTitle() {
       const newTitle = prompt(
         "修改母專案名稱:",
@@ -1781,7 +1697,6 @@ const app = createApp({
         });
       }
     },
-
     async editSubProjectTitle() {
       const newTitle = prompt("修改子專案名稱:", this.currentSubProject.title);
       if (
@@ -1795,7 +1710,6 @@ const app = createApp({
         });
       }
     },
-
     addSetupMilestone() {
       this.setupForm.milestones.push({
         id: "ms" + Date.now(),
@@ -1923,11 +1837,8 @@ const app = createApp({
       this.showEventModal = true;
     },
     async saveEvent() {
-      // 1. 權限檢查
       if (this.currentSubProject.currentHandler !== this.currentUser.name)
         return;
-
-      // 2. 日期檢查：不可早於專案開始日
       if (
         new Date(this.eventForm.date) <
         new Date(this.currentSubProject.startDate)
@@ -1937,8 +1848,6 @@ const app = createApp({
         );
         return;
       }
-
-      // 3. 日期檢查：不可早於上一筆日誌 (保持時間軸連貫)
       if (
         this.currentSubProject.events &&
         this.currentSubProject.events.length > 0
@@ -1956,8 +1865,6 @@ const app = createApp({
           return;
         }
       }
-
-      // 4. [防呆] 若為最後一個里程碑節點，禁止將球權轉給別人
       if (this.eventForm.matchedMilestoneId) {
         const sortedMilestones = [...this.currentSubProject.milestones].sort(
           (a, b) => new Date(a.date) - new Date(b.date)
@@ -1971,8 +1878,6 @@ const app = createApp({
           }
         }
       }
-
-      // 5. 建立新日誌物件
       const newEvent = {
         id: "ev" + Date.now(),
         ...this.eventForm,
@@ -1981,33 +1886,20 @@ const app = createApp({
             ? this.eventForm.nextAssignee
             : null,
       };
-
       const nextHandler = this.eventForm.nextAssignee;
       const isHandoff = nextHandler !== this.currentUser.name;
       let isProjectCompleted = false;
       let delayDetected = false;
-
-      // 6. 將日誌推入本地陣列
       if (!this.currentSubProject.events) this.currentSubProject.events = [];
       this.currentSubProject.events.push(newEvent);
-
       const oldHandler = this.currentSubProject.currentHandler;
       this.currentSubProject.currentHandler = nextHandler;
-
-      // ==========================================
-      // [優化關鍵] 計算總工時並寫入 (新增部分)
-      // ==========================================
       const newTotalHours = this.currentSubProject.events.reduce(
         (sum, ev) => sum + Number(ev.hours || 0),
         0
       );
-      // 強制進位到小數點第一位
       const roundedTotal = Math.round(newTotalHours * 10) / 10;
-      // 更新本地資料 (讓畫面立刻變)
       this.currentSubProject.totalHours = roundedTotal;
-      // ==========================================
-
-      // 7. 里程碑匹配與結案邏輯判斷
       if (this.eventForm.matchedMilestoneId) {
         const sortedMilestones = [...this.currentSubProject.milestones].sort(
           (a, b) => new Date(a.date) - new Date(b.date)
@@ -2022,60 +1914,44 @@ const app = createApp({
           ms.diffDays = Math.floor(
             (new Date(this.eventForm.date) - new Date(ms.date)) / 86400000
           );
-
-          // 如果是最後一個節點 -> 觸發結案檢查
           if (ms.id === lastMilestone.id) {
             const today = new Date(this.eventForm.date);
             const deadline = new Date(this.currentSubProject.endDate);
             const finalDelay = Math.floor((today - deadline) / 86400000);
-
             if (finalDelay > 0) {
-              // A. 發生延遲：彈出視窗詢問原因 (不直接存檔)
               delayDetected = true;
-              // 回滾狀態 (因為要等填完原因才算數)
               this.currentSubProject.events.pop();
               this.currentSubProject.currentHandler = oldHandler;
               ms.isCompleted = false;
-
-              // 暫存資料傳給 Modal
               this.tempCompletionData = {
                 finalDelay,
                 newEvent,
                 milestoneId: ms.id,
                 nextHandler,
               };
-
               this.showEventModal = false;
               this.modalMode = "sub_delay_complete";
               this.delayForm = { reason: "人力不足", remark: "" };
               this.showDelayReasonModal = true;
-              return; // ★ 這裡直接 Return，等待 Modal 確認後再存檔
+              return;
             } else {
-              // B. 準時完成：直接結案
               isProjectCompleted = true;
-              this.currentSubProject.status = "archived"; // 您的邏輯是設為 archived (或 completed)
+              this.currentSubProject.status = "archived";
               this.currentSubProject.finalDelayDays = 0;
               this.currentSubProject.completedDate = this.eventForm.date;
-              // alert("恭喜！專案準時完成，自動結案。");
               this.triggerConfetti();
             }
           }
         }
       }
-
       this.showEventModal = false;
-
-      // 8. 寫入資料庫 (Firestore Update)
       try {
         const updates = {
           events: this.currentSubProject.events,
           currentHandler: nextHandler,
           milestones: this.currentSubProject.milestones,
-
-          // [優化關鍵] 將算好的總工時存入資料庫
           totalHours: roundedTotal,
         };
-
         if (isHandoff) {
           updates.lastHandoffDate = this.eventForm.date;
           this.sendNotification(
@@ -2086,19 +1962,15 @@ const app = createApp({
             this.currentSubProject.id
           );
         }
-
         if (isProjectCompleted) {
-          updates.status = "completed"; // 或 archived，視您原本邏輯而定
+          updates.status = "completed";
           updates.finalDelayDays = 0;
           updates.completedDate = this.eventForm.date;
         }
-
         await updateDoc(
           doc(db, "sub_projects", this.currentSubProject.id),
           updates
         );
-
-        // [補丁] 如果結案了，手動把它加到歷史陣列，避免它從畫面消失
         if (isProjectCompleted) {
           const completedProject = { ...this.currentSubProject, ...updates };
           this.historySubs.push(completedProject);
@@ -2109,21 +1981,14 @@ const app = createApp({
         alert("存檔失敗，請檢查網路");
       }
     },
-
-    // [UX 彩蛋] 隨機結案慶祝特效
     triggerConfetti() {
-      // 1. 播放音效
       const audio = document.getElementById("notification-sound");
       if (audio) {
         audio.currentTime = 0;
         audio.play().catch((e) => console.log("Audio play blocked", e));
       }
-
-      // 2. 隨機決定特效模式 (0, 1, 2)
       const mode = Math.floor(Math.random() * 3);
-
       if (mode === 0) {
-        // Mode 0: 兩側加農砲 (經典品牌色)
         const end = Date.now() + 2000;
         const colors = ["#4f46e5", "#fabe00", "#ef4444"];
         (function frame() {
@@ -2143,9 +2008,7 @@ const app = createApp({
           });
           if (Date.now() < end) requestAnimationFrame(frame);
         })();
-        console.log("🎉 Effect: Side Cannons");
       } else if (mode === 1) {
-        // Mode 1: 盛大煙火秀 (隨機炸裂)
         const duration = 3000;
         const animationEnd = Date.now() + duration;
         const defaults = {
@@ -2155,7 +2018,6 @@ const app = createApp({
           zIndex: 9999,
         };
         const randomInRange = (min, max) => Math.random() * (max - min) + min;
-
         const interval = setInterval(function () {
           const timeLeft = animationEnd - Date.now();
           if (timeLeft <= 0) return clearInterval(interval);
@@ -2173,13 +2035,10 @@ const app = createApp({
             })
           );
         }, 250);
-        console.log("🎉 Effect: Fireworks");
       } else {
-        // Mode 2: 紙醉金迷 (金色豪華版)
         const count = 200;
         const defaults = { origin: { y: 0.7 } };
-        const goldColors = ["#FFD700", "#F0E68C", "#DAA520"]; // 金色系
-
+        const goldColors = ["#FFD700", "#F0E68C", "#DAA520"];
         const fire = (particleRatio, opts) => {
           confetti(
             Object.assign({}, defaults, opts, {
@@ -2193,10 +2052,8 @@ const app = createApp({
         fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
         fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
         fire(0.1, { spread: 120, startVelocity: 45 });
-        console.log("🎉 Effect: Luxury Gold");
       }
     },
-
     async sendNotification(recipient, type, message, pid, sid) {
       await addDoc(collection(db, "notifications"), {
         recipient,
@@ -2234,185 +2091,107 @@ const app = createApp({
       });
     },
     goBack() {
-      // [修改] 使用瀏覽器的上一頁功能
       this.$router.back();
-
-      // 原本的 historyStack 邏輯可以全部刪除，因為 Vue Router 已經幫您管理歷史紀錄了！
     },
     selectParentProject(proj) {
-      // [修改] 改用路由跳轉
       this.$router.push({ name: "parent", params: { pid: proj.id } });
-
-      // 下面這幾行可以拿掉了，因為 handleRouteUpdate 會幫您做
-      // this.addToHistory();
-      // this.currentParentProject = proj;
-      // this.currentView = "parent_detail";
     },
-
     pokeHeader() {
       this.pokeCount++;
       this.isHeaderSpinning = true;
-
-      // 讓 icon 轉一圈，0.5秒後停下來
       setTimeout(() => {
         this.isHeaderSpinning = false;
       }, 500);
-
-      // 如果連續戳了 5 下
       if (this.pokeCount >= 5) {
         const originalTitle = "我的待辦任務";
-        // 變身！
         this.headerTitle = "別戳了！快去工作！💢";
-
-        // 3秒後氣消
         setTimeout(() => {
           this.headerTitle = originalTitle;
-          this.pokeCount = 0; // 重置計數
+          this.pokeCount = 0;
         }, 3000);
       }
     },
-
-    // 👇👇👇 [請補上這一段] 超級煙火函式 (Konami Code 用) 👇👇👇
     triggerSuperParty() {
       if (!window.confetti) return;
       console.log("Konami Code Activated! 🚀");
-
       const duration = 3000;
       const end = Date.now() + duration;
-
       (function frame() {
-        confetti({
-          particleCount: 5,
-          angle: 60,
-          spread: 55,
-          origin: { x: 0 },
-        });
+        confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 } });
         confetti({
           particleCount: 5,
           angle: 120,
           spread: 55,
           origin: { x: 1 },
         });
-
         if (Date.now() < end) {
           requestAnimationFrame(frame);
         }
       })();
     },
-
-    // [New] 彩蛋：下雪特效
     triggerSnow() {
-        if (!window.confetti) return;
-        
-        const duration = 5000; // 下 5 秒
-        const end = Date.now() + duration;
-
-        (function frame() {
-            // 產生白色的圓形紙片，模擬雪花
-            confetti({
-                particleCount: 1,
-                startVelocity: 0,
-                ticks: 200,
-                origin: {
-                    x: Math.random(),
-                    // 從最上面落下
-                    y: Math.random() * 0.1 
-                },
-                colors: ['#ffffff'], // 雪是白的
-                shapes: ['circle'],  // 雪是圓的
-                gravity: 0.6,        // 飄慢一點
-                scalar: 0.8,         // 小一點
-                drift: 0             // 直直落下
-            });
-
-            if (Date.now() < end) {
-                requestAnimationFrame(frame);
-            }
-        }());
-        
-        console.log("❄️ Winter is coming...");
+      if (!window.confetti) return;
+      const duration = 5000;
+      const end = Date.now() + duration;
+      (function frame() {
+        confetti({
+          particleCount: 1,
+          startVelocity: 0,
+          ticks: 200,
+          origin: { x: Math.random(), y: Math.random() * 0.1 },
+          colors: ["#ffffff"],
+          shapes: ["circle"],
+          gravity: 0.6,
+          scalar: 0.8,
+          drift: 0,
+        });
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      })();
+      console.log("❄️ Winter is coming...");
     },
-
     selectSubProject(sp, parent) {
-      // [修改] 改用路由跳轉
       this.$router.push({
         name: "sub",
         params: { pid: parent.id, sid: sp.id },
       });
-
-      // 下面這幾行可以拿掉了
-      // this.addToHistory();
-      // this.currentParentProject = parent;
-      // this.currentSubProject = sp;
-      // this.currentView = "sub_project_detail";
     },
-    // [修正] 請補上這兩個函式到 methods 裡，不然 HTML 會報錯
-
-    // 1. 取得卡片要顯示的目標日期 (最近里程碑 > 結束日)
     getTaskTargetDate(item) {
-      // 如果有里程碑，嘗試找最近的未完成里程碑
       if (item.milestones && item.milestones.length > 0) {
-        // 找出「未完成」且「有日期」的里程碑，並依照日期排序 (最早的在前)
         const nextMs = item.milestones
           .filter((m) => !m.isCompleted && m.date)
           .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
-
         if (nextMs) return nextMs.date;
       }
-      // 2. 如果沒有里程碑 (或都做完了)，就顯示原本的結案日
       return item.endDate;
     },
-
-    // 2. 取得該日期的名稱 (例如：腳本確認)
     getTaskTargetLabel(item) {
       if (item.milestones && item.milestones.length > 0) {
         const nextMs = item.milestones
           .filter((m) => !m.isCompleted && m.date)
           .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
-
         if (nextMs) return nextMs.title;
       }
       return "專案結束";
     },
-    // [修正] 看板日期顏色：直接判斷「顯示日期」的急迫性
     getKanbanDateClass(item) {
-      // 1. 取得目前卡片顯示的日期 (可能是節點，也可能是結案日)
       const targetDateStr = this.getTaskTargetDate(item);
       if (!targetDateStr) return "text-slate-400";
-
       const now = new Date();
       const todayStr = now.toISOString().split("T")[0];
-
-      // 計算三天後的日期 (用來判斷橘燈)
       const lagDate = new Date();
       lagDate.setDate(lagDate.getDate() + 3);
       const lagDateStr = lagDate.toISOString().split("T")[0];
-
-      // 2. 判斷邏輯
-      // A. 已經過期 (紅字 + 閃爍動畫)
-      if (targetDateStr < todayStr) {
-        return "text-red-600 animate-pulse";
-      }
-      // B. 三天內要到期 (亮橘色)
-      if (targetDateStr <= lagDateStr) {
-        return "text-orange-500";
-      }
-      // C. 還很久 (灰色)
+      if (targetDateStr < todayStr) return "text-red-600 animate-pulse";
+      if (targetDateStr <= lagDateStr) return "text-orange-500";
       return "text-slate-400";
     },
-
-    // [New] 計算專案里程碑完成度 (回傳 0~100 的數字)
     getProjectProgress(item) {
-      // 如果沒有設定里程碑，進度就是 0
       if (!item.milestones || item.milestones.length === 0) return 0;
-
-      // 計算已完成的數量
       const completed = item.milestones.filter((m) => m.isCompleted).length;
-
-      // 回傳百分比 (四雪五入)
       return Math.round((completed / item.milestones.length) * 100);
     },
-
     openCalendarSideEvent(ev) {
       this.calendarSideEvent = ev;
     },
@@ -2483,17 +2262,12 @@ const app = createApp({
             this.currentSubProject.status
           )
         ) {
-          // 確保物件已經是最新的狀態
           this.historySubs.push({ ...this.currentSubProject });
           this.buildIndexes();
-
-          // [新增] 如果是結案 (completed/archived) 且不是中止 (aborted)，就放彩帶
           if (this.currentSubProject.status !== "aborted") {
             this.triggerConfetti();
           }
         }
-
-        // alert("資料已儲存"); <--- 建議把這個拿掉，因為彩帶本身就是最好的回饋
         this.showDelayReasonModal = false;
         this.delayForm = { reason: "人力不足", remark: "" };
       } catch (e) {
@@ -2503,15 +2277,13 @@ const app = createApp({
         this.isSubmitting = false;
       }
     },
-    // [New] 全案歸檔按鈕動作
     async archiveProject(project) {
       if (!confirm(`確定要將專案「${project.title}」歸檔嗎？`)) return;
-
       try {
         await updateDoc(doc(db, "projects", project.id), {
           status: "archived",
         });
-        project.status = "archived"; // Local update
+        project.status = "archived";
         this.currentView = "dashboard";
         this.loadHistoryData();
         alert("專案已歸檔！");
@@ -2520,7 +2292,6 @@ const app = createApp({
         alert("歸檔失敗");
       }
     },
-    // 結案 (與歸檔不同，結案為 completed)
     async completeParentProject(proj) {
       if (confirm("確認全案結案？(狀態將變為 completed)"))
         await updateDoc(doc(db, "projects", proj.id), { status: "completed" });
@@ -2565,14 +2336,10 @@ const app = createApp({
     toggleExpand(p) {
       p.expanded = !p.expanded;
     },
-    // [修正] 底層計算函式：強制進位到小數點第一位
     calcSubProjectHours(sp) {
-      // [優化] 如果資料庫裡已經有算好的欄位，直接回傳 (CPU 複雜度從 O(N) 降為 O(1))
       if (sp.totalHours !== undefined) {
         return sp.totalHours;
       }
-
-      // [相容性] 萬一遇到漏網之魚(舊資料)，還是用舊方法算一下，避免顯示 0
       const total = (sp.events || []).reduce(
         (sum, ev) => sum + Number(ev.hours || 0),
         0
@@ -2671,16 +2438,13 @@ const app = createApp({
       };
     },
     statusBadge(s) {
-      // [新增] 規劃中 (黃色 + 邊框)
       if (s === "setup")
         return "bg-yellow-100 text-yellow-700 border border-yellow-200";
-
       if (s === "completed") return "bg-emerald-100 text-emerald-700";
       if (s === "in_progress") return "bg-indigo-100 text-indigo-700";
       if (s === "aborted") return "bg-slate-200 text-slate-600";
       if (s === "archived") return "bg-gray-800 text-gray-300";
-
-      return "bg-slate-100 text-slate-500"; // 預設值
+      return "bg-slate-100 text-slate-500";
     },
     getDeadlineStatus(dateStr) {
       if (!dateStr) return { status: "normal", label: "未定", days: 0 };
@@ -2705,12 +2469,9 @@ const app = createApp({
       return { status: "normal", label: `剩 ${diffDays} 天`, days: diffDays };
     },
     getDateStyle(dateStr, status = "active") {
-      // 1. 如果專案狀態是「已完成、已歸檔、已中止」，一律回傳一般顏色 (灰色/深色)
       if (["completed", "archived", "aborted"].includes(status)) {
         return "text-slate-500 font-medium";
       }
-
-      // 2. 原本的邏輯 (只針對執行中 active / in_progress 的專案)
       const s = this.getDeadlineStatus(dateStr);
       if (s.status === "overdue") return "text-red-600 font-bold";
       if (s.status === "warning") return "text-yellow-600 font-bold";
@@ -2725,8 +2486,6 @@ const app = createApp({
     branchHasDelay(branch) {
       return this.getSubProjectDelayDays(branch) > 0;
     },
-
-    // --- 主管確認邏輯 ---
     async startManagerCheck() {
       if (
         !confirm(
@@ -2734,7 +2493,6 @@ const app = createApp({
         )
       )
         return;
-
       this.isSubmitting = true;
       try {
         const today = new Date().toISOString().split("T")[0];
@@ -2762,7 +2520,6 @@ const app = createApp({
         this.isSubmitting = false;
       }
     },
-
     async finishManagerCheck() {
       this.isSubmitting = true;
       try {
@@ -2798,11 +2555,8 @@ const app = createApp({
         this.isSubmitting = false;
       }
     },
-
-    // --- 快速檢視視窗 ---
     openQuickView(branch, parent, brand) {
-      // [修改] 增加 brand 參數
-      this.quickViewData = { branch, parent, brand }; // [修改] 把 brand 存進去
+      this.quickViewData = { branch, parent, brand };
       this.showQuickViewModal = true;
     },
     getQuickViewMilestones(branch) {
@@ -2821,84 +2575,47 @@ const app = createApp({
           idx > firstIncompleteIdx,
       }));
     },
-
-    // [New] 計算特定里程碑的累計工時
-    // 在 methods: { ... } 裡面
-
-    // [修改] 計算特定里程碑的累計工時 (邏輯：計算 上一個節點 ~ 這個節點 之間的所有工時)
     getMilestoneHours(branch, milestoneId) {
       if (!branch || !branch.events || !branch.milestones) return 0;
-
-      // 1. 先把里程碑依照日期排序，確保順序正確
       const sortedMs = [...branch.milestones].sort(
         (a, b) => new Date(a.date) - new Date(b.date)
       );
-
-      // 2. 找到「目前這個節點」在陣列中的位置索引 (index)
       const currentIdx = sortedMs.findIndex((m) => m.id === milestoneId);
-      if (currentIdx === -1) return 0; // 找不到此節點
-
-      // 3. 定義時間區間 (Range)
-      // 結束時間：當然就是「這個節點」的日期
+      if (currentIdx === -1) return 0;
       const currentEndDate = new Date(sortedMs[currentIdx].date);
-      currentEndDate.setHours(23, 59, 59, 999); // 包含當天
-
-      // 開始時間：要看有沒有「上一個節點」
+      currentEndDate.setHours(23, 59, 59, 999);
       let prevEndDate;
       if (currentIdx === 0) {
-        // 如果這是「第一個」節點，那開始時間就是無限早 (或是專案開始日)
-        // 這裡設為 1970 年，確保所有在這個節點之前的工時都會被算進來
         prevEndDate = new Date("1970-01-01");
       } else {
-        // 如果前面還有節點，開始時間就是「上一個節點」的日期
         prevEndDate = new Date(sortedMs[currentIdx - 1].date);
-        prevEndDate.setHours(23, 59, 59, 999); // 設定為上個節點當天的最後一秒
+        prevEndDate.setHours(23, 59, 59, 999);
       }
-
-      // 4. 開始篩選並加總日誌
       const total = branch.events.reduce((sum, ev) => {
         const evDate = new Date(ev.date);
-
-        // 核心邏輯：日誌日期 必須「大於」上個節點 且 「小於等於」這個節點
-        // (也就是夾在兩個節點中間的工時)
         if (evDate > prevEndDate && evDate <= currentEndDate) {
           return sum + Number(ev.hours || 0);
         }
         return sum;
       }, 0);
-
       return Math.round(total * 10) / 10;
     },
-    // ... 其他 methods ...
-
-    // [New] 開始調整側邊欄寬度
     startResizeSidebar(e) {
       this.isResizingSidebar = true;
-      // 加入全域監聽，避免滑鼠移出 iframe 或區塊時失效
       document.addEventListener("mousemove", this.handleSidebarResize);
       document.addEventListener("mouseup", this.stopResizeSidebar);
-      // 防止拖曳時選取到文字
       document.body.style.userSelect = "none";
       document.body.style.cursor = "col-resize";
     },
-
-    // [New] 計算新寬度
     handleSidebarResize(e) {
       if (!this.isResizingSidebar) return;
-
-      // 設定最小與最大寬度限制
       const minWidth = 200;
       const maxWidth = 600;
-
       let newWidth = e.clientX;
-
       if (newWidth < minWidth) newWidth = minWidth;
       if (newWidth > maxWidth) newWidth = maxWidth;
-
       this.sidebarWidth = newWidth;
     },
-
-    // [New] 停止調整
     stopResizeSidebar() {
       this.isResizingSidebar = false;
       document.removeEventListener("mousemove", this.handleSidebarResize);
@@ -2906,9 +2623,6 @@ const app = createApp({
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
     },
-    // 在 methods: { ... } 裡面加入
-
-    // [Admin] 強制刪除母專案 (危險操作)
     async adminDeleteParent() {
       if (this.currentUser.role !== "admin") return;
       const confirmStr = prompt(
@@ -2925,8 +2639,6 @@ const app = createApp({
         }
       }
     },
-
-    // [Admin] 強制刪除子專案
     async adminDeleteSub() {
       if (this.currentUser.role !== "admin") return;
       if (
@@ -2935,96 +2647,56 @@ const app = createApp({
         )
       )
         return;
-
       try {
         await deleteDoc(doc(db, "sub_projects", this.currentSubProject.id));
         alert("子專案已刪除");
-        // 回到母專案
         this.currentView = "parent_detail";
       } catch (e) {
         console.error(e);
         alert("刪除失敗");
       }
     },
-
-    // [Admin] 搬移子專案 (換爸爸)
     async adminMoveSubProject() {
       if (this.currentUser.role !== "admin") return;
-
-      // 為了方便，先列出所有母專案讓管理者看 ID (或是您之後可以做成選單)
       console.log("可用母專案清單:", this.rawParents);
-
       const newParentId = prompt(
         "請輸入目標母專案的 ID (請按 F12 看 Console 或從網址列複製 ID):"
       );
       if (!newParentId) return;
-
-      // 檢查 ID 是否存在
       const targetParent = this.indexedParentMap[newParentId];
       if (!targetParent) return alert("找不到該 ID 的母專案！");
-
       if (
         !confirm(
           `確定要將「${this.currentSubProject.title}」移動到「${targetParent.title}」底下嗎？`
         )
       )
         return;
-
       try {
         await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), {
           parentId: newParentId,
         });
         alert("搬移成功！");
-        this.currentView = "dashboard"; // 強制重整畫面邏輯
+        this.currentView = "dashboard";
       } catch (e) {
         console.error(e);
         alert("搬移失敗");
       }
     },
-    // 在 methods: { ... } 裡面加入：
-
-    // [Admin] 更新母專案日期
     async updateParentDates() {
-      // 權限檢查：只有 admin 可以改
       if (this.currentUser.role !== "admin") return;
-
       try {
         await updateDoc(doc(db, "projects", this.currentParentProject.id), {
           startDate: this.currentParentProject.startDate,
           endDate: this.currentParentProject.endDate,
         });
-
-        // 這裡可以選擇是否要跳 alert，或是默默更新即可
-        // alert("專案週期已更新");
         console.log("母專案日期已更新");
       } catch (e) {
         console.error("更新日期失敗", e);
         alert("更新失敗，請檢查權限或網路");
       }
     },
-    async updateMilestone() {
-      // 1. 權限檢查
-      if (this.currentUser.role !== "admin") return;
-
-      try {
-        // 2. 直接把目前的 milestones 陣列存回去
-        await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), {
-          milestones: this.currentSubProject.milestones,
-        });
-        // 選用：如果要安靜更新就不跳 alert
-        // alert("節點資訊已更新");
-        console.log("節點已更新");
-      } catch (e) {
-        console.error(e);
-        alert("更新失敗");
-      }
-    },
-    // 在 methods: { ... } 裡面加入：
-
-    // [Admin] 新增里程碑節點
     async addMilestone() {
       if (this.currentUser.role !== "admin") return;
-
       const title = prompt("請輸入新節點名稱:");
       if (!title) return;
       const date = prompt(
@@ -3032,26 +2704,19 @@ const app = createApp({
         new Date().toISOString().split("T")[0]
       );
       if (!date) return;
-
       const newMs = {
-        id: "ms" + Date.now(), // 產生唯一 ID
+        id: "ms" + Date.now(),
         title: title,
         date: date,
         isCompleted: false,
       };
-
       try {
-        // 確保陣列存在
         if (!this.currentSubProject.milestones)
           this.currentSubProject.milestones = [];
-
         this.currentSubProject.milestones.push(newMs);
-
-        // 重新排序 (依日期)
         this.currentSubProject.milestones.sort(
           (a, b) => new Date(a.date) - new Date(b.date)
         );
-
         await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), {
           milestones: this.currentSubProject.milestones,
         });
@@ -3061,62 +2726,42 @@ const app = createApp({
         alert("新增失敗");
       }
     },
-
-    // [Admin] 刪除里程碑節點 (帶防呆檢查)
     async deleteMilestone(msId) {
       if (this.currentUser.role !== "admin") return;
-
-      // 1. 防呆檢查：是否有日誌關聯到此節點
       const hasLogs = (this.currentSubProject.events || []).some(
         (ev) => ev.matchedMilestoneId === msId
       );
-
       if (hasLogs) {
         alert(
           "❌ 無法刪除！\n\n已有「工作日誌」關聯到此節點。若強制刪除將導致工時統計錯誤。\n\n請先修改或刪除相關日誌，解除關聯後再試。"
         );
         return;
       }
-
       if (!confirm("確定要永久刪除此節點嗎？")) return;
-
       try {
-        // 過濾掉該 ID
         this.currentSubProject.milestones =
           this.currentSubProject.milestones.filter((m) => m.id !== msId);
-
         await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), {
           milestones: this.currentSubProject.milestones,
         });
-        // alert("節點已刪除");
       } catch (e) {
         console.error(e);
         alert("刪除失敗");
       }
     },
-
-    // [Admin] 更新里程碑 (修改日期或標題後觸發)
     async updateMilestone() {
       if (this.currentUser.role !== "admin") return;
-
       try {
-        // 1. 重新計算所有已完成節點的「延遲天數 (diffDays)」
-        //    公式：實際完成日 - 預定日期
         this.currentSubProject.milestones.forEach((m) => {
           if (m.isCompleted && m.completedDate && m.date) {
             const actual = new Date(m.completedDate);
             const plan = new Date(m.date);
-            // 計算日差 (無條件捨去)
             m.diffDays = Math.floor((actual - plan) / (1000 * 60 * 60 * 24));
           }
         });
-
-        // 2. 重新排序 (依預定日期)
         this.currentSubProject.milestones.sort(
           (a, b) => new Date(a.date) - new Date(b.date)
         );
-
-        // 3. 存檔
         await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), {
           milestones: this.currentSubProject.milestones,
         });
@@ -3126,72 +2771,52 @@ const app = createApp({
         alert("更新存檔失敗");
       }
     },
-    // [Admin] 修改工作日誌內容 (工時/內容)
     async updateEventLog() {
       if (this.currentUser.role !== "admin") return;
-
       try {
-        // [優化] ★★★ 重新計算總工時 ★★★
         const newTotalHours = this.currentSubProject.events.reduce(
           (sum, ev) => sum + Number(ev.hours || 0),
           0
         );
         const roundedTotal = Math.round(newTotalHours * 10) / 10;
-        this.currentSubProject.totalHours = roundedTotal; // 本地更新
-
+        this.currentSubProject.totalHours = roundedTotal;
         await updateDoc(doc(db, "sub_projects", this.currentSubProject.id), {
           events: this.currentSubProject.events,
-
-          // [優化] ★★★ 寫入資料庫 ★★★
           totalHours: roundedTotal,
         });
-
-        this.showToast("更新成功", "工時與日誌已修正", "success");
       } catch (e) {
         console.error(e);
-        this.showToast("修正失敗", e.message, "error");
+        alert("修正失敗");
       }
     },
-
-    // 在 methods: { ... } 裡面，請直接替換掉原本的 handleRouteUpdate
-
-    // [最終修正版] 路由處理核心
-    // [最終修正版] 路由處理核心 (含單筆補抓救援機制)
     async handleRouteUpdate(route) {
-      // 1. 如果使用者權限還沒準備好，先不做事 (等待 watch: dataReady 觸發)
       if (!this.dataReady) return;
-
       console.log("路由同步畫面:", route.name, route.params);
-
       switch (route.name) {
         case "dashboard":
           this.currentView = "dashboard";
           this.selectedDashboardBrand = "all";
           break;
-
         case "report":
           this.currentView = "history_report";
           this.loadHistoryData();
           break;
-
         case "workspace":
           this.currentView = "my_workspace";
           this.workspaceTab = "tasks";
           break;
-
+        case "budget":
+          this.currentView = "budget_center";
+          this.loadBudgetData();
+          break;
         case "parent": {
           const pid = route.params.pid;
           let parent = this.indexedParentMap[pid];
-
-          // 救援 A: 嘗試下載歷史資料 (如果快取找不到)
           if (!parent && !this.isHistoryLoaded) {
             console.log("快取未命中，嘗試載入歷史資料...");
             await this.loadHistoryData();
             parent = this.indexedParentMap[pid];
           }
-
-          // 救援 B: (終極) 如果還是找不到，直接單筆抓取
-          // 這能解決「資料還沒下載完」或是「被 limit 擋住」的問題
           if (!parent) {
             console.log("啟動單筆救援：母專案", pid);
             try {
@@ -3204,18 +2829,14 @@ const app = createApp({
                   status: "active",
                   ...snap.data(),
                 };
-                // 補進 Map 避免下次還要抓
                 this.indexedParentMap[pid] = parent;
-                // 暫時塞進 activeParents 讓畫面能渲染
                 this.activeParents.push(parent);
-                // 重建索引確保關聯正確
                 this.buildIndexes();
               }
             } catch (e) {
               console.error("母專案單筆補抓失敗", e);
             }
           }
-
           if (parent) {
             this.currentParentProject = parent;
             this.currentView = "parent_detail";
@@ -3226,30 +2847,21 @@ const app = createApp({
           }
           break;
         }
-
         case "sub": {
           const subPid = route.params.pid;
           const sid = route.params.sid;
-
           let p = this.indexedParentMap[subPid];
-          // 嘗試從活躍或歷史清單找子專案
           let s = this.activeSubs.find((sub) => sub.id === sid);
           if (!s) s = this.historySubs.find((sub) => sub.id === sid);
-
-          // 救援 A: 下載歷史資料
           if ((!p || !s) && !this.isHistoryLoaded) {
             await this.loadHistoryData();
-            // 重抓變數
             p = this.indexedParentMap[subPid];
             if (!s) s = this.activeSubs.find((sub) => sub.id === sid);
             if (!s) s = this.historySubs.find((sub) => sub.id === sid);
           }
-
-          // 救援 B: (終極) 單筆抓取
           if (!p || !s) {
             console.log("快取未命中，啟動單筆救援 (子專案)...");
             try {
-              // 1. 補抓母專案 (如果缺的話)
               if (!p) {
                 const pSnap = await getDoc(doc(db, "projects", subPid));
                 if (pSnap.exists()) {
@@ -3264,7 +2876,6 @@ const app = createApp({
                   this.activeParents.push(p);
                 }
               }
-              // 2. 補抓子專案 (如果缺的話)
               if (!s) {
                 const sSnap = await getDoc(doc(db, "sub_projects", sid));
                 if (sSnap.exists()) {
@@ -3280,21 +2891,17 @@ const app = createApp({
                     links: data.links || [],
                     comments: data.comments || [],
                   };
-                  // 補進 activeSubs 讓畫面能顯示
                   this.activeSubs.push(s);
-                  // 手動更新索引
                   if (!this.indexedSubsByParent[subPid])
                     this.indexedSubsByParent[subPid] = [];
                   this.indexedSubsByParent[subPid].push(s);
                 }
               }
-              // 補完資料後重建索引
               this.buildIndexes();
             } catch (e) {
               console.error("單筆補抓失敗", e);
             }
           }
-
           if (p && s) {
             this.currentParentProject = p;
             this.currentSubProject = s;
@@ -3306,7 +2913,6 @@ const app = createApp({
           }
           break;
         }
-
         default:
           if (this.currentView !== "dashboard") {
             this.currentView = "dashboard";
@@ -3315,24 +2921,18 @@ const app = createApp({
       }
     },
     navigateTo(pageName) {
-      this.showMobileSidebar = false; // 關閉手機側邊欄
-
-      // 透過 Router 去改變網址 -> 網址變了 -> 觸發上面的 handleRouteUpdate -> 畫面才會變
+      this.showMobileSidebar = false;
       if (pageName === "dashboard") this.$router.push("/");
       if (pageName === "report") this.$router.push("/report");
       if (pageName === "workspace") this.$router.push("/workspace");
+      if (pageName === "budget") this.$router.push("/budget");
     },
-    // [New] 應用模板 (自動計算日期)
-
-    // [New] 應用模板 (支援不填開始日)
     applyTemplate() {
       if (this.selectedTemplateIndex === "") return;
-
       const template = this.projectTemplates[this.selectedTemplateIndex];
       const baseDateStr = this.setupForm.startDate;
       const hasBaseDate = baseDateStr && baseDateStr.trim() !== "";
       const baseDate = hasBaseDate ? new Date(baseDateStr) : null;
-
       template.milestones.forEach((tm) => {
         let dateStr = "";
         if (hasBaseDate && tm.daysOffset !== undefined) {
@@ -3349,20 +2949,14 @@ const app = createApp({
           isCompleted: false,
         });
       });
-
       const validDates = this.setupForm.milestones.filter((m) => m.date !== "");
       if (validDates.length > 0) {
         validDates.sort((a, b) => new Date(a.date) - new Date(b.date));
         this.setupForm.endDate = validDates[validDates.length - 1].date;
       }
-
       alert(`模板「${template.name}」載入完成！`);
       this.selectedTemplateIndex = "";
-    }, // <--- 這裡原本是 methods 的結束點，現在只是 applyTemplate 的結束
-
-    // 👇👇👇 這些函式必須被包在 methods 裡面 👇👇👇
-
-    // [New] 同步專注清單到 Firebase
+    },
     async syncFocusIdsToFirebase() {
       if (!this.currentUserId) return;
       try {
@@ -3373,15 +2967,9 @@ const app = createApp({
         console.error("同步失敗", e);
       }
     },
-
-    // [New] 看板拖曳事件處理
     async onKanbanChange(evt, targetColumn) {
       if (evt.added) {
         const item = evt.added.element;
-        const fromColumn = this.getDragSourceColumn(item);
-
-        console.log(`從 ${fromColumn} 拖到 ${targetColumn}`, item.title);
-
         if (targetColumn === "today") {
           if (!this.localFocusIds.includes(item.id)) {
             this.localFocusIds.push(item.id);
@@ -3448,16 +3036,448 @@ const app = createApp({
         }
       }
     },
-
-    // 輔助函式
     getDragSourceColumn(item) {
       if (item.status === "setup") return "inbox";
       if (item.isWaitingForManager) return "review";
       if (this.localFocusIds.includes(item.id)) return "today";
       return "backlog";
     },
+
+    // --- [Budget System] Methods ---
+    loadBudgetData() {
+      if (this.isBudgetLoaded) return;
+      console.log("正在載入預算系統資料...");
+
+      onSnapshot(collection(db, "budget_categories"), (snap) => {
+        this.budgetCategories = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+      });
+      onSnapshot(collection(db, "budget_proposals"), (snap) => {
+        this.budgetProposals = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+      });
+      onSnapshot(collection(db, "budget_sub_items"), (snap) => {
+        this.budgetSubItems = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      });
+      onSnapshot(collection(db, "budget_expenses"), (snap) => {
+        this.budgetExpenses = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        this.isBudgetLoaded = true;
+      });
+    },
+    formatCurrency(val) {
+      return new Intl.NumberFormat("zh-TW", {
+        style: "currency",
+        currency: "TWD",
+        minimumFractionDigits: 0,
+      }).format(val || 0);
+    },
+    getCategoryColor(index) {
+      const colors = [
+        "bg-indigo-500 text-indigo-500",
+        "bg-rose-500 text-rose-500",
+        "bg-amber-400 text-amber-400",
+        "bg-emerald-500 text-emerald-500",
+        "bg-cyan-500 text-cyan-500",
+        "bg-purple-500 text-purple-500",
+      ];
+      return colors[index % colors.length];
+    },
+    getProposalsByCategory(catId) {
+      return this.budgetProposals
+        .filter((p) => p.categoryId === catId)
+        .map((p) => {
+          const mySubs = this.budgetSubItems.filter(
+            (s) => s.proposalId === p.id
+          );
+          let actual = 0;
+          mySubs.forEach((s) => {
+            const subExps = this.budgetExpenses.filter(
+              (e) => e.subItemId === s.id
+            );
+            actual += subExps.reduce(
+              (sum, e) => sum + (Number(e.amount) || 0),
+              0
+            );
+          });
+          return { ...p, actualTotal: actual };
+        });
+    },
+    getSubItemsByProposal(propId) {
+      return this.budgetSubItems
+        .filter((s) => s.proposalId === propId)
+        .map((s) => {
+          const subExps = this.budgetExpenses.filter(
+            (e) => e.subItemId === s.id
+          );
+          const totalExpense = subExps.reduce(
+            (sum, e) => sum + (Number(e.amount) || 0),
+            0
+          );
+          return { ...s, totalExpense };
+        });
+    },
+    getExpensesBySubItem(subId) {
+      return this.budgetExpenses.filter((e) => e.subItemId === subId);
+    },
+    toggleProposalExpand(id) {
+      const i = this.expandedProposals.indexOf(id);
+      if (i > -1) this.expandedProposals.splice(i, 1);
+      else this.expandedProposals.push(id);
+    },
+    getProgressBarColor(u, t) {
+      if (t === 0) return "bg-slate-300";
+      const ratio = u / t;
+      return ratio > 1
+        ? "bg-red-500"
+        : ratio > 0.8
+        ? "bg-orange-400"
+        : "bg-emerald-500";
+    },
+    getUsageColor(u, t) {
+      if (t === 0) return "text-slate-400";
+      const ratio = u / t;
+      return ratio > 1
+        ? "text-red-600"
+        : ratio > 0.8
+        ? "text-orange-600"
+        : "text-emerald-600";
+    },
+    getExpenseStatus(exp) {
+      if (!exp.isRequested)
+        return { label: "未請款", class: "bg-slate-100 text-slate-500" };
+      if (!exp.paymentDate)
+        return { label: "請款中", class: "bg-blue-100 text-blue-700" };
+      const today = new Date().toISOString().split("T")[0];
+      if (exp.paymentDate <= today)
+        return { label: "已付款", class: "bg-emerald-100 text-emerald-700" };
+      return { label: "請款中", class: "bg-blue-100 text-blue-700" };
+    },
+
+    canManage(item) {
+      return (
+        this.currentUser.role === "admin" ||
+        item.owner === this.currentUser.name
+      );
+    },
+    canManageCategory() {
+      return (
+        this.currentUser.role === "admin" ||
+        this.currentUser.role === "director"
+      );
+    },
+
+    openCategoryModal(cat = null) {
+      if (!this.canManageCategory()) return alert("權限不足：僅主管可操作");
+      if (cat) {
+        this.currentCategoryEditId = cat.id;
+        this.categoryForm = { name: cat.name, budget: cat.budget };
+      } else {
+        this.currentCategoryEditId = null;
+        this.categoryForm = { name: "", budget: 0 };
+      }
+      this.showCategoryModal = true;
+    },
+    async saveCategory() {
+      if (!this.categoryForm.name) return;
+      this.isSubmitting = true;
+      try {
+        if (this.currentCategoryEditId) {
+          await updateDoc(
+            doc(db, "budget_categories", this.currentCategoryEditId),
+            {
+              name: this.categoryForm.name,
+              budget: Number(this.categoryForm.budget) || 0,
+            }
+          );
+        } else {
+          const newData = BudgetFactory.createCategory(
+            this.categoryForm,
+            this.selectedBudgetBrandId,
+            this.selectedBudgetYear
+          );
+          await addDoc(collection(db, "budget_categories"), newData);
+        }
+        this.showCategoryModal = false;
+      } catch (e) {
+        console.error(e);
+        alert("儲存失敗");
+      } finally {
+        this.isSubmitting = false;
+      }
+    },
+    async deleteCategory(id) {
+      if (!this.canManageCategory()) return alert("權限不足");
+      if (
+        !confirm("確定刪除此預算大項？\n(注意：其下的簽呈與數據將會失去關聯)")
+      )
+        return;
+      try {
+        await deleteDoc(doc(db, "budget_categories", id));
+      } catch (e) {
+        console.error(e);
+        alert("刪除失敗");
+      }
+    },
+
+    openProposalModal(cat) {
+      this.currentCategoryForAdd = cat;
+      this.proposalForm = { title: "", amount: 0 };
+      this.showProposalModal = true;
+    },
+
+    // [Mod] 簽呈新增 (允許超支)
+    async saveProposal() {
+      if (!this.proposalForm.title) return;
+      const cat = this.currentCategoryForAdd;
+      const currentUsed = this.budgetProposals
+        .filter((p) => p.categoryId === cat.id)
+        .reduce((s, p) => s + p.amount, 0);
+      const remaining = cat.budget - currentUsed;
+      let overReason = "";
+
+      if (this.proposalForm.amount > remaining) {
+        const reason = prompt(
+          `⚠️ [超支警示]\n\n此簽呈金額 ($${this.formatCurrency(
+            this.proposalForm.amount
+          )}) 已超過大項剩餘預算 ($${this.formatCurrency(
+            remaining
+          )})！\n\n請輸入「超支理由」以強制建立：`
+        );
+        if (reason === null) return;
+        if (!reason.trim()) return alert("必須填寫理由才能超支！");
+        overReason = reason;
+      }
+
+      this.isSubmitting = true;
+      try {
+        const newData = {
+          ...BudgetFactory.createProposal(
+            this.proposalForm,
+            this.currentCategoryForAdd.id,
+            this.currentUser
+          ),
+          overspendReason: overReason,
+        };
+        await addDoc(collection(db, "budget_proposals"), newData);
+        this.showProposalModal = false;
+      } catch (e) {
+        console.error(e);
+        alert("新增失敗");
+      } finally {
+        this.isSubmitting = false;
+      }
+    },
+    async deleteProposal(prop) {
+      if (!this.canManage(prop)) return alert("權限不足");
+      if (!confirm(`確定刪除簽呈「${prop.title}」？`)) return;
+      try {
+        await deleteDoc(doc(db, "budget_proposals", prop.id));
+      } catch (e) {
+        console.error(e);
+        alert("刪除失敗");
+      }
+    },
+    // [New] 結案釋出
+    async closeProposal(prop) {
+      if (!this.canManage(prop)) return alert("權限不足");
+      const actual = prop.actualTotal || 0;
+      const savedAmount = prop.amount - actual;
+      let confirmMsg = `確定要結案「${
+        prop.title
+      }」嗎？\n\n・原始規劃: $${this.formatCurrency(
+        prop.amount
+      )}\n・實際核銷: $${this.formatCurrency(actual)}\n`;
+      if (savedAmount >= 0) {
+        confirmMsg += `\n💰 系統將釋出 $${this.formatCurrency(
+          savedAmount
+        )} 回預算池。`;
+      } else {
+        confirmMsg += `\n⚠️ 此專案超支 $${this.formatCurrency(
+          Math.abs(savedAmount)
+        )}，結案後將確認此超支金額。`;
+      }
+      confirmMsg += `\n\n(注意：結案後內容將無法再修改)`;
+      if (!confirm(confirmMsg)) return;
+      try {
+        await updateDoc(doc(db, "budget_proposals", prop.id), {
+          isClosed: true,
+          originalAmount: prop.amount,
+          amount: actual,
+        });
+        this.triggerConfetti();
+      } catch (e) {
+        console.error(e);
+        alert("結案失敗");
+      }
+    },
+
+    openSubItemModal(prop, subToEdit = null) {
+      this.currentProposalForAdd = prop;
+      if (subToEdit) {
+        this.isEditingSubItem = true;
+        this.currentSubItemEditId = subToEdit.id;
+        this.subItemForm.name = subToEdit.name;
+        this.subItemForm.amount = subToEdit.amount;
+      } else {
+        this.isEditingSubItem = false;
+        this.currentSubItemEditId = null;
+        this.subItemForm = { name: "", amount: 0 };
+      }
+      this.showSubItemModal = true;
+    },
+    async saveSubItem() {
+      if (!this.subItemForm.name) return;
+      let overReason = "";
+      if (!this.isEditingSubItem && this.currentProposalForAdd) {
+        const prop = this.currentProposalForAdd;
+        const currentSubs = this.budgetSubItems
+          .filter((s) => s.proposalId === prop.id)
+          .reduce((s, i) => s + i.amount, 0);
+        const remaining = prop.amount - currentSubs;
+        if (this.subItemForm.amount > remaining) {
+          const reason = prompt(
+            `⚠️ [超支警示]\n\n此細項金額 ($${this.formatCurrency(
+              this.subItemForm.amount
+            )}) 已超過簽呈剩餘額度 ($${this.formatCurrency(
+              remaining
+            )})！\n\n請輸入「超支理由」以強制建立：`
+          );
+          if (reason === null) return;
+          if (!reason.trim()) return alert("必須填寫理由才能超支！");
+          overReason = reason;
+        }
+      }
+      this.isSubmitting = true;
+      try {
+        if (this.isEditingSubItem) {
+          await updateDoc(
+            doc(db, "budget_sub_items", this.currentSubItemEditId),
+            {
+              name: this.subItemForm.name,
+              amount: Number(this.subItemForm.amount) || 0,
+            }
+          );
+        } else {
+          const newData = {
+            ...BudgetFactory.createSubItem(
+              this.subItemForm,
+              this.currentProposalForAdd.id,
+              this.currentUser
+            ),
+            overspendReason: overReason,
+          };
+          await addDoc(collection(db, "budget_sub_items"), newData);
+        }
+        this.showSubItemModal = false;
+      } catch (e) {
+        console.error(e);
+        alert("儲存失敗: " + e.message);
+      } finally {
+        this.isSubmitting = false;
+      }
+    },
+    async deleteSubItem(sub) {
+      if (!this.canManage(sub)) return alert("權限不足");
+      if (!confirm(`確定刪除細項「${sub.name}」？`)) return;
+      try {
+        await deleteDoc(doc(db, "budget_sub_items", sub.id));
+      } catch (e) {
+        console.error(e);
+        alert("刪除失敗");
+      }
+    },
+
+    openExpenseModal(prop, sub, expenseToEdit = null) {
+      this.currentSubItemForExpense = sub;
+      if (expenseToEdit) {
+        this.isEditingExpense = true;
+        this.currentExpenseEditId = expenseToEdit.id;
+        this.expenseForm = JSON.parse(JSON.stringify(expenseToEdit));
+      } else {
+        this.isEditingExpense = false;
+        this.currentExpenseEditId = null;
+        this.expenseForm = {
+          event: "",
+          vendor: "",
+          invoiceNo: "",
+          invoiceDate: new Date().toISOString().split("T")[0],
+          amount: 0,
+          isRequested: false,
+          paymentDate: "",
+          owner: this.currentUser.name,
+        };
+      }
+      this.showExpenseModal = true;
+    },
+    async saveExpense() {
+      if (!this.expenseForm.vendor || this.expenseForm.amount <= 0)
+        return alert("請填寫完整資訊");
+      this.isSubmitting = true;
+      try {
+        const dataToSave = {
+          event: this.expenseForm.event || "",
+          vendor: this.expenseForm.vendor,
+          invoiceNo: this.expenseForm.invoiceNo,
+          invoiceDate: this.expenseForm.invoiceDate,
+          amount: Number(this.expenseForm.amount),
+          isRequested: this.expenseForm.isRequested,
+          paymentDate: this.expenseForm.paymentDate,
+        };
+        if (this.isEditingExpense) {
+          const orgExp = this.budgetExpenses.find(
+            (e) => e.id === this.currentExpenseEditId
+          );
+          if (
+            orgExp.owner !== this.currentUser.name &&
+            this.currentUser.role !== "admin"
+          ) {
+            throw new Error("只有本人或管理員可修改核銷單");
+          }
+          await updateDoc(
+            doc(db, "budget_expenses", this.currentExpenseEditId),
+            dataToSave
+          );
+        } else {
+          const newData = {
+            ...BudgetFactory.createExpense(
+              this.expenseForm,
+              this.currentSubItemForExpense.id,
+              this.currentUser
+            ),
+            ...dataToSave,
+          };
+          await addDoc(collection(db, "budget_expenses"), newData);
+        }
+        this.showExpenseModal = false;
+      } catch (e) {
+        console.error(e);
+        alert(e.message || "儲存失敗");
+      } finally {
+        this.isSubmitting = false;
+      }
+    },
+    async deleteExpense(id) {
+      if (!confirm("確定刪除此核銷紀錄？")) return;
+      const orgExp = this.budgetExpenses.find((e) => e.id === id);
+      if (
+        orgExp.owner !== this.currentUser.name &&
+        this.currentUser.role !== "admin"
+      ) {
+        return alert("只有本人或管理員可刪除");
+      }
+      try {
+        await deleteDoc(doc(db, "budget_expenses", id));
+      } catch (e) {
+        console.error(e);
+        alert("刪除失敗");
+      }
+    },
   },
 });
-app.use(router); // 掛載路由
+app.use(router);
 app.component("vuedraggable", window.vuedraggable);
 app.mount("#app");
