@@ -109,7 +109,7 @@ const routes = [
 ];
 
 const router = VueRouter.createRouter({
-  history: VueRouter.createWebHistory("/mkt-dashboard/"),
+  history: VueRouter.createWebHistory("/"),
   routes,
 });
 
@@ -3481,3 +3481,4 @@ const app = createApp({
 app.use(router);
 app.component("vuedraggable", window.vuedraggable);
 app.mount("#app");
+
